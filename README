@@ -1,0 +1,67 @@
+Redmine Task Manager
+--------------------
+
+The project is to convert this Javascript into a Redmine
+plugin in order to propose its installation into
+the Redmine Plugins inventory.
+
+Install:
+--------
+
+The way to make this work is slightly simple:
+
+* Install this js file into the $REDMINE_HOME/public/javascripts/
+  directory
+* Modify the file $REDMINE_HOME/lib/redcloth3.rb to allow HTML 
+  tags:
+
+  HTML_TAGS = [
+  "blockquote", "body", "br", "div", "h1", "h2", "h3", "h4", "h5", "h6", "head", "hr", "html", "p",
+  "base", "link", "meta", "script", "style", "title",
+  "dd", "dir", "dl", "dt", "li", "menu", "ol", "ul",
+  "a", "abbr", "acronym", "address", "b", "basefont", "bdo", "big", "blink", "center", "cite", "code", "comment", "del", "dfn",
+  "em", "font", "i", "ins", "kbd", "marquee", "nobr", "noscript", "plaintext", "pre", "q", "rb", "rbc", "rp", "rt", "rtc",
+  "ruby", "s", "samp", "small", "span", "strike", "strong", "sub", "sup", "tt", "u", "var", "wbr", "xmp",
+  "button", "fieldset", "form", "input", "isindex", "label", "legend", "optgroup", "option", "select", "textarea",
+  "applet", "area", "bgsound", "embed", "img", "map", "noembed", "object", "param",
+  "caption", "col", "colgroup", "table", "tbody", "td", "tfoot", "th", "thead", "tr",
+  "frame", "frameset", "noframes", "iframe" 
+  ]
+
+
+  ALLOWED_TAGS = %w(redpre pre code notextile)
+
+
+  HTML_TAGS.each do |tag_html|
+  ALLOWED_TAGS << tag_html
+  end
+
+  right after the "clean_html" function definition.
+
+* And now create a wiki page in your project with the following lines:
+
+  <html>
+
+  <script src="/javascripts/joax.js" type="text/javascript"></script>
+
+  <script>JInterface.init(600)</script>
+
+  </html>
+
+
+Notes:
+------
+
+As you can see it uses Scriptacolous, an already included library in Redmine.
+
+Regards,
+
+Joax.
+
+Author:
+-------
+
+Joaquin Ayuso de Paul
+http://joax.wordpress.com
+joaxap@gmail.com
+
