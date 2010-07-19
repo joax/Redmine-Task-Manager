@@ -1,5 +1,33 @@
 
 var TGrabber = {
+ 
+  // ---------------------- AJAX calls -------------------------------
+
+  setXMLAjax: function(url, onload) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.onreadystatechange = function() {
+      if(xhr.readyStatu == 4) {
+        if(xhr.status == 200) {
+          onload(xhr.responseXML);
+        }
+      }
+    }
+    xhr.send(null);
+  },
+
+  setPlainAjax: function(url, onload) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.onreadystatechange = function() {
+      if(xhr.readyStatu == 4) {
+        if(xhr.status == 200) {
+          onload(xhr.responseText);
+        }
+      }
+    }
+    xhr.send(null);
+  },
 
   // ---------------------- Iframes management -----------------------
 
@@ -35,6 +63,26 @@ var TGrabber = {
      }
   },
 
+  // --------------------- Feeds methods ------------------------------
+
+  getProjects: function(xmlstring) {
+    var projects = [];
+    if(xmlstring != null) {
+      var nodes = xmlstring.getElementsByTagName('entry');
+      for(var i=0; i<nodes.length; i++) {
+        var node = nodes[i];
+        var project = {};
+        project["title"] = node.getElementsByTagName('title')[0];
+        project["link"] = node.getElementsByTagName('link')[0];
+        project["id"] = node.getElementsByTagName('id')[0];
+        project["updated"] = node.getElementsByTagName('updated')[0];
+        project["content"] = node.getElementsByTagName('content')[0];
+        projects[projects.length] = project;
+      }
+    }
+    if(configProjects) configProjects = projects;
+  },
+ 
   // --------------------- Worker methods -----------------------------
 
   grabFilters: function(iframe) {
@@ -202,7 +250,6 @@ var TGrabber = {
     iframe.contentWindow.document.getElementById(TGrabber.issueSubject).value = title;
 
     if(priority) iframe.contentWindow.document.getElementById(TGrabber.issuePriorityId).value = priority;
-    if(notes) iframe.contentWindow.document.getElementById(TGrabber.issueDescription).value = notes;
     if(target_version) iframe.contentWindow.document.getElementById(TGrabber.issueTargetVersion).value = target_version;
     if(hours) iframe.contentWindow.document.getElementById(TGrabber.issueEstimatedHours).value = hours;
     if(category) iframe.contentWindow.document.getElementById(TGrabber.issueCategoryId).value = category;
@@ -238,6 +285,12 @@ var TGrabber = {
   },
 
   createTask: function(tracker, title, text, target_version, category, priority, dificulty, assignee, start_date, due_date, hours, notes) {
+    if(!tracker) tracker = 0;
+    if(!target_version) target_version = 0;
+    if(!category) category = 0;
+    if(!assignee) assignee = 0;
+    if(!hours) hours = 0;
+    notes = escape(notes);
     var onload = 'TGrabber.addTicketSetValues(this, 1,"' + 
                               title + '", "' + 
                               text + '", ' +

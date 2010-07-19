@@ -428,7 +428,7 @@ var JInterface = {
     var text = document.getElementById('task-add-text').value;
     var assignee = document.getElementById('task-add-assignee').value;
  
-    TGrabber.createTask(tracker, title, text, version_id, category_id, 1, 1, assignee,'', '', 4, '');
+    TGrabber.createTask(tracker, title, text, version_id, category_id, 1, 1, assignee, '', '', 4, '');
 
     $('menu_add_list_layer').innerHTML = '';
     $('menu_add_list_layer').appendChild(SortList.renderAddTask());
