@@ -1,3 +1,36 @@
+function FilterCollection() {
+  
+  this.filters = {};
+
+  this.addFilter = function(ids, field, title) {
+    if(!this.filters[title]) {
+      this.filters[title] = {};
+      this.filters[title].ids = ids;
+      this.filters[title].field = field;
+    } else {
+      // Merge the ids with the current one
+      for(var i=0;i<ids.length;i++) {
+        var found = false;
+        for(var j=0;j<this.filters[title].ids.length;j++) {
+          if(this.filters[title].ids[j] == ids[i])
+            found = true;
+        }
+        if(!found)
+          this.filters[title].ids[this.filters[title].ids.length] = ids[i];
+      }
+    }
+  };
+
+  this.length = function() {
+    var length = 0;
+    for(var i in this.filters) {
+      length ++;
+    }
+    return length;
+  }
+};
+
+
 function ListCollection() {
 
   this.lists = [];
@@ -46,7 +79,7 @@ function ListCollection() {
   this.serializable = function() {
     var arrayT = [];
     for(var i=0;i<this.length();i++) {
-      arrayT[arrayT.length] = [this.lists[i].url, this.lists[i].color, this.lists[i].title];
+      arrayT[arrayT.length] = [this.lists[i].url, this.lists[i].color, this.lists[i].title, this.lists[i].isFiltered];
     }
     return arrayT;
   };
@@ -54,21 +87,24 @@ function ListCollection() {
   this.parse = function(array) {
     this.lists = [];
     for(var i=0;i<array.length;i++) {
-      this.addList(new List([array[i][0], array[i][1], array[i][2]])); 
+      this.addList(new List([array[i][0], array[i][1], array[i][2], array[i][3]])); 
     }
   };
 }
 
 var listCollection = new ListCollection();
+var filterCollection = new FilterCollection();
 
 var sortProject = 'projects/data-products/';
 var sortBaseUrl = 'https://wiki.borderstylo.com/';
+
 var sortMe = 0;
 
 var configHeight = window.innerHeight - 200;
 var configNumberLists = 3;
 
 var filtersList = [];
+var sortSubProjects = [];
 
 var TPriority = {
   code: function(value) {
@@ -363,21 +399,24 @@ var JInterface = {
     
     var menuList  = JInterface.menuCanvas('menu_filters','380px', 500);
     var menuAdd   = JInterface.menuCanvas('menu_add','440px', 40);
-    var menuSpeed = JInterface.menuCanvas('menu_canvas','200px', 900);
+    var menuTools = JInterface.menuCanvas('menu_canvas','200px', 900);
     
     var menuFilterList  = JInterface.menuContent(menuList.id, '80%');
     var menuAddList     = JInterface.menuContent(menuAdd.id, '95%');
-    var menuSpeedList   = JInterface.menuContent(menuSpeed.id, '95%');
+    var menuToolsList   = JInterface.menuContent(menuTools.id, '95%');
 
     menuAdd = JInterface.menuTitle('Add Task',menuAdd);
     menuList = JInterface.menuTitle('Tasks Filters',menuList);
-    menuSpeed = JInterface.menuTitle('Tools',menuSpeed);
-  
-    for(var j=0;j<listCollection.length();j++) {
-      var speedC  = JHtml.div('',
-                          'float: left; margin: 2px; height: 20px; width: 20px;' + 
-                          'font-size: 18px; font-weight: bold');
-      menuSpeedList.appendChild(speedC);
+    menuTools = JInterface.menuTitle('Tools',menuTools);
+ 
+    if(filterCollection.length) {
+      var toolsButtons = JHtml.div();
+      toolsButtons.setAttribute('style','width: 90%; padding: 3px; text-align: center;');
+      var toolVersions = JHtml.button('', 'Apply Versions Filter','JInterface.applyFilters(filterCollection)');
+      var toolNoVersions = JHtml.button('', 'No Filters','JInterface.applyFilters(null)');
+      toolsButtons.appendChild(toolVersions);
+      toolsButtons.appendChild(toolNoVersions);
+      menuToolsList.appendChild(toolsButtons);
     }
 
     for(var i=0;i<filtersList.length;i++) {
@@ -395,7 +434,7 @@ var JInterface = {
 
     menuList.appendChild(menuFilterList);
     menuAdd.appendChild(menuAddList);
-   // menuSpeed.appendChild(menuSpeedList);
+    menuTools.appendChild(menuToolsList);
 
     if($('menu_jhtml')) {
        $('menu_jhtml').parentNode.removeChild($('menu_jhtml'));
@@ -403,21 +442,35 @@ var JInterface = {
 
     var executeButton   = JHtml.button('','Save Changes','JInterface.calculateOptions()');
     var addTicketButton = JHtml.button('', 'Add Task', 'JInterface.addTask()');
-    var speedButton     = JHtml.span('','');
+    var toolsButton     = JHtml.span('','');
 
     menuAdd     = JInterface.menuBottom(addTicketButton, menuAdd);
     menuList    = JInterface.menuBottom(executeButton, menuList);
-    menuSpeed   = JInterface.menuBottom(speedButton, menuSpeed);
+    menuTools   = JInterface.menuBottom(toolsButton, menuTools);
 
     menu.appendChild(menuList);
     menu.appendChild(menuAdd);
-    menu.appendChild(menuSpeed);
+    menu.appendChild(menuTools);
     menu.appendChild(JInterface.menuRefresh('Refresh'));
     
     if($('content').childNodes.length == 0)
       $('content').appendChild(menu);
     else
       $('content').insertBefore(menu, $('content').childNodes[0]);
+  },
+
+  applyFilters: function(filter) {
+    if(filter != null) {
+       for(var i=0; i<listCollection.length();i++) {
+        listCollection.lists[i].groupBy(filter);
+      }    
+    } else {
+      for(var i=0; i<listCollection.length();i++) {
+        listCollection.lists[i].isFiltered = 0;
+        listCollection.lists[i].load();
+      }
+    }
+    JInterface.storePreferences();
   },
 
   addTask: function() {
@@ -458,6 +511,8 @@ var JInterface = {
     JInterface.getURL();
     JInterface.retrievePreferences();
     configHeight = screenHeight; 
+    TGrabber.getVersions(sortProject);
+    TGrabber.getSubProjects();
     TGrabber.getFilters();
   },
 
@@ -483,7 +538,7 @@ var JInterface = {
       }
     } else {
       for(var i=0;i<listCollection.length();i++){
-        filtersDisplay[filtersDisplay.length] = [listCollection.lists[i].url, listCollection.lists[i].color, listCollection.lists[i].title];
+        filtersDisplay[filtersDisplay.length] = new List([listCollection.lists[i].url, listCollection.lists[i].color, listCollection.lists[i].title, listCollection.lists[i].isFiltered]);
       }
     }
     SortList.init(filtersDisplay);
@@ -544,8 +599,7 @@ var SortList = {
 
   // --------------- Lists Creation --------------------------------
 
-  setupList: function(url, color, title) {
-    var list = new List([url, color, title]);
+  setupList: function(list) {
     var container = list.container.html;
     $('listsContainer').appendChild(container);
     list.load();
@@ -555,7 +609,7 @@ var SortList = {
   init: function(arrayLists) {
     SortList.renderListsContainer();
     for(var i=0;i < arrayLists.length;i++) {
-      SortList.setupList(arrayLists[i][0], arrayLists[i][1], arrayLists[i][2]);
+      SortList.setupList(arrayLists[i]);
     }
     SortList.reorderLists();
   },
@@ -856,25 +910,14 @@ var SortList = {
           t.type = task_type;
           t.color = color;
           t.parse(iterator[i]);
-          $(list.containerName).appendChild(t.html);
           list.tasks[list.tasks.length] = t;
         }
-        // Lets add the last element
-        var end = JHtml.div();
-        end.setAttribute('style','width: 100%; height: 2px; border-top: 1px solid #c0c0c0; ' +
-                            ' border-bottom: 1px solid #c0c0c0; font-size: 2px;' +
-                            '-moz-box-shadow: 0px 5px 5px 0px #c0c0c0;' +
-                            '-webkit-box-shadow: 0px 3px 3px 0px #c0c0c0;');
-        end.innerHTML = '&nbsp;';
-        $(list.containerName).appendChild(end);
+        if(parseInt(list.isFiltered) == 2) {
+          list.groupBy(filterCollection);
+        }
         list.reloadSubTitle();
+        list.render();
       }
-    } else {
-      var noElementsDiv = JHtml.div('',
-                          'padding: 20px; text-align: center; width: 100%;');
-      noElementsDiv.innerHTML = 'There is no elements';
-      $(container).innerHTML = '';
-      $(container).appendChild(noElementsDiv); 
     }
     TGrabber.garbageCollectOne(obj);
     SortList.doMagic();

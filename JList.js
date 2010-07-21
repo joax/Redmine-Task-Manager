@@ -22,7 +22,7 @@ function ListContainer(title) {
                                 'padding: 0px;  height: ' + (configHeight - 38) + 'px; ' + 
                                 '-moz-box-shadow: 0px -3px 5px 0px #c0c0c0 inset;' + 
                                 '-webkit-box-shadow: 0px -3px 5px 0px #c0c0c0 inset;' + 
-                                'overflow: auto;' +
+                                'overflow-y: auto; overflow-x: hidden;' +
                                 '-webkit-box-shadow: 0px 0px 0px 0px #c0c0c0; ');
     return bucketc;
   };
@@ -85,8 +85,8 @@ function ListContainer(title) {
     var rawLink = JHtml.a();
     rawLink.setAttribute('style', 'padding-left: 20px; background-image: url(/images/copy.png); ' + 
                                 'background-repeat: no-repeat; cursor: pointer;');
-    rawLink.setAttribute('onclick', 'listCollection.list("' + this.title + '").getRawList();');
-    rawLink.innerHTML = 'Copy';
+    rawLink.setAttribute('onclick', 'listCollection.list("' + this.title + '").getRawList(true);');
+    rawLink.innerHTML = 'Changelog';
     rawOptions.appendChild(rawLink);
     
     var colorOptions = JHtml.div('',
@@ -114,7 +114,7 @@ function ListContainer(title) {
 
 
 function List(list) {
-  
+ 
   this.url = list[0];
   this.color = list[1];
   this.title = list[2];
@@ -138,6 +138,8 @@ function List(list) {
   this.taskType = this.taskTypeName();
   this.container = new ListContainer(this.title);
 
+  this.isFiltered = list[3] ? list[3] : 0;
+
   this.task = function(taskId) {
     for(var i=0;i<this.tasks.length;i++) {
       if(this.tasks[i].taskId == taskId) {
@@ -146,11 +148,96 @@ function List(list) {
     }
   };
 
+  // ------------------ Group by filters -------------------------
+
+  this.toggleTasks = function(filter) {
+    var ids = filter.ids;
+    var field = filter.field;
+    var title = filter.title;
+
+    for(var t=0;t<this.tasks.length;t++) {
+      for(var d =0;d<ids.length;d++) {
+        if(this.tasks[t][field] == ids[d]) {
+          this.tasks[t].toggle();
+        }
+      }
+    }
+
+    var st = document.getElementById('subtitle-' + this.title + '-' + title);
+    if(st.style.color == 'white')
+      st.style.color = 'gray';
+    else
+      st.style.color = 'white';
+  };
+  
+  this.subTitle = function(title, field, ids) {
+    var sTitle = JHtml.div('subtitle-' + this.title + '-' + title);
+    sTitle.setAttribute('style','width: 100%; background-image: -webkit-gradient(linear, left top, left bottom, from(black), to(gray));' + 
+                        'background-image: -moz-linear-gradient(top left, black, gray); color: white; cursor: pointer;' +
+                        'font-size: 14px; font-weight: bold; padding: 3px; padding-left: 10px;');
+    if(ids)
+      sTitle.setAttribute('onclick','listCollection.list("' + this.title + '").toggleTasks({ title: "' + title + '",  field: "' + field + '", ids: [ ' + ids.join(',') +' ]})');
+    sTitle.innerHTML = title;
+    return sTitle;
+  };
+
+  // The filter must have this structure:
+  // id - id to identify
+  // field - field to identify with
+  this.groupBy = function(fCol) {
+    if(fCol.length()) {
+      var new_order = [];
+      for(var i in fCol.filters){
+        var ids = fCol.filters[i].ids;
+        var field = fCol.filters[i].field;
+        // Insert the title
+        var stitle = {};
+        stitle.html = this.subTitle(i, field, ids);
+        stitle.title = i;
+        new_order[new_order.length] = stitle;
+        for(var t=0;t<this.tasks.length;t++) {
+          for(var d =0;d<ids.length;d++) {
+            if(this.tasks[t][field] == ids[d]) {
+              new_order[new_order.length] = this.tasks[t];  
+            }
+          }
+        }
+      }
+
+      if(new_order.length < this.tasks.length + fCol.length()) {
+        var stitle = {};
+        stitle.html = this.subTitle('The rest');
+        stitle.title = 'The rest';
+        new_order[new_order.length] = stitle;
+        for(var t=0;t<this.tasks.length;t++) {
+          var found = false;
+          for(var i in fCol.filters) {
+            for(var d=0;d<fCol.filters[i].ids.length;d++) {
+              if(this.tasks[t][fCol.filters[i].field] == fCol.filters[i].ids[d]) {
+                found = true;
+              }
+            }
+          }
+          if(!found && !this.tasks[t].title) {
+            new_order[new_order.length] = this.tasks[t];  
+          }
+        }
+      }
+      this.tasks = [];
+      this.tasks = new_order;
+      this.isFiltered = 2;
+      this.render();
+    } else {
+      this.load();
+    }
+  };
+
   // ------------------ Generate Html List -----------------------
 
   // This function generates a list to be sent in email (i.e. Changelog)
 
-  this.getRawList = function() {
+  this.getRawList = function(changelog) {
+
     if($('raw-representation-' + this.containerName)) {
       var raw = $('raw-representation-' + this.containerName);
       raw.show();
@@ -160,6 +247,7 @@ function List(list) {
                                   'padding: 10px; z-index: 201; top: 20px; left: 0px;');
     }
     var divClose = JHtml.div();
+    divClose.setAttribute('style','margin: 10px;');
     var closeLink = JHtml.a();
     closeLink.setAttribute('style', 'padding-left: 20px; background-image: url(/images/close_hl.png); ' + 
                                 'background-repeat: no-repeat; cursor: pointer;');
@@ -173,21 +261,31 @@ function List(list) {
     text += '<thead>';
     text += '<tr>';
     text += '<th style="text-align: left;">ID</th>';
-    text += '<th style="text-align: left;">Tracker</th>';
-    text += '<th style="text-align: left;">Status</th>';
-    text += '<th style="text-align: left;">Priority</th>';
+    if(!changelog) {
+      text += '<th style="text-align: left;">Tracker</th>';
+      text += '<th style="text-align: left;">Status</th>';
+      text += '<th style="text-align: left;">Priority</th>';
+    }
     text += '<th style="text-align: left;">Subject</th>';
     text += '</tr>';
     text += '</thead><tbody>';
 
     for(var i=0; i<this.tasks.length; i++) {
-      text += '<tr>';
-      text += '<td>#' + this.tasks[i].taskId  + '</td>';
-      text += '<td>' + TTracker.decode(this.tasks[i].trackerId)  + '</td>';
-      text += '<td>' + TStatus.decode(this.tasks[i].statusId)  + '</td>';
-      text += '<td>' + TPriority.decode(this.tasks[i].priorityId)  + '</td>';
-      text += '<td>' + this.tasks[i].subject  + '</td>';
-      text += '</tr>'  
+      if(this.tasks[i].title) {
+        text += '<tr>';
+        text += '<td colspan="5" style="font-weight: bold; border-bottom: 1px solid black">' + this.tasks[i].title + '</td>';
+        text += '</tr>'; 
+      } else {
+        text += '<tr>';
+        text += '<td>#' + this.tasks[i].taskId  + '</td>';
+        if(!changelog) {
+          text += '<td>' + TTracker.decode(this.tasks[i].trackerId)  + '</td>';
+          text += '<td>' + TStatus.decode(this.tasks[i].statusId)  + '</td>';
+          text += '<td>' + TPriority.decode(this.tasks[i].priorityId)  + '</td>';
+        }
+        text += '<td>' + this.tasks[i].subject  + '</td>';
+        text += '</tr>';
+      }
     }
 
     text += '</tbody></table>';
@@ -232,7 +330,8 @@ function List(list) {
   this.setColor = function(color) {
     this.color = color;
     for(var i=0;i<this.tasks.length;i++) {
-      this.tasks[i].setColor(color);  
+      if(this.tasks[i].trackerId)
+        this.tasks[i].setColor(color);  
     }
     JInterface.storePreferences();
   },
@@ -242,7 +341,8 @@ function List(list) {
   this.dificulty = function() {
     var total = 0;
     for(var i=0;i<this.tasks.length;i++) {
-      total += this.tasks[i].dificulty;
+      if(this.tasks[i].dificulty)
+        total += this.tasks[i].dificulty;
     }
     return total;
   };
@@ -250,7 +350,8 @@ function List(list) {
   this.bugsCounter = function() {
     var total = 0;
     for(var i=0;i<this.tasks.length;i++) {
-      total += this.tasks[i].trackerId == TTracker.BUG ? 1 : 0;
+      if(this.tasks[i].trackerId)
+        total += this.tasks[i].trackerId == TTracker.BUG ? 1 : 0;
     }
     return total;
   };
@@ -258,7 +359,8 @@ function List(list) {
   this.featuresCounter = function() {
     var total = 0;
     for(var i=0;i<this.tasks.length;i++) {
-      total += this.tasks[i].trackerId == TTracker.FEATURE ? 1 : 0;
+      if(this.tasks[i].trackerId)
+        total += this.tasks[i].trackerId == TTracker.FEATURE ? 1 : 0;
     }
     return total;
    
@@ -267,7 +369,8 @@ function List(list) {
   this.tasksCounter = function() {
     var total = 0;
     for(var i=0;i<this.tasks.length;i++) {
-      total += this.tasks[i].trackerId == TTracker.TASK ? 1 : 0;
+      if(this.tasks[i].trackerId)
+        total += this.tasks[i].trackerId == TTracker.TASK ? 1 : 0;
     }
     return total;
   };
@@ -281,12 +384,36 @@ function List(list) {
   // ------------------ Iframe load -------------------------------
 
   this.load = function() {
+
     $(this.containerName + '-loading').show();
     this.tasks = [];
     TGrabber.getTasks(this.url, "SortList.fill(this,'" + this.color + "','" + this.taskType + "','" + this.containerName + "')")
   };
 
-}
+  this.render = function() {
+
+    $(this.containerName).innerHTML = '';
+
+    if(this.tasks.length) {
+      for(var i = 0; i<this.tasks.length; i++)
+        $(this.containerName).appendChild(this.tasks[i].html);
+
+      var end = JHtml.div();
+      end.setAttribute('style','width: 100%; height: 2px; border-top: 1px solid #c0c0c0; ' +
+                ' border-bottom: 1px solid #c0c0c0; font-size: 2px;' +
+                '-moz-box-shadow: 0px 5px 5px 0px #c0c0c0;' +
+                '-webkit-box-shadow: 0px 3px 3px 0px #c0c0c0;');
+      end.innerHTML = '&nbsp;';
+      $(this.containerName).appendChild(end);
+    } else {
+      var noElementsDiv = JHtml.div('',
+              'padding: 20px; text-align: center; width: 100%;');
+      noElementsDiv.innerHTML = 'There is no elements';
+      $(this.containerName).innerHTML = '';
+      $(this.containerName).appendChild(noElementsDiv);
+    }
+  };
+};
 
 function Task() {
 
@@ -316,6 +443,22 @@ function Task() {
 
   // HTML to return back
   this.html = null;
+
+  this.hide = function() {
+    this.html.style.display = 'none';
+  };
+  
+  this.show = function() {
+    this.html.style.display = '';
+  };
+
+  this.toggle = function() {
+    if(this.html.style.display == '') {
+      this.html.style.display = 'none';
+    } else { 
+      this.html.style.display = '';
+    }
+  };
 
   this.setId = function() {
     this.id = this.type + '-issue-' + this.taskId;
@@ -353,6 +496,15 @@ function Task() {
       } else if(tds[j].className == 'tracker') {
         var tracker = tds[j].innerHTML;
         this.trackerId = TTracker.code(tracker);
+        tds[j].parentNode.removeChild(tds[j]);
+        j-=1;
+      } else if(tds[j].className == 'fixed_version') {
+        if(tds[j].childNodes.length) {
+          var version = tds[j].childNodes[0].innerHTML;
+          this.versionId = parseInt(TVersion.code(version));
+        } else {
+          this.versionId = null;
+        }
         tds[j].parentNode.removeChild(tds[j]);
         j-=1;
       } else if(tds[j].className == 'priority') {
@@ -427,6 +579,38 @@ function Task() {
   };
  
   this.taskOptions = function() {
+    var that = this;
+    var rspan = JHtml.span();
+    rspan.setAttribute('style','padding-right: 5px;');
+    rspan.setAttribute('align','right');
+    var buttonSpan = JHtml.greyButton('O', '');
+    buttonSpan.onclick = function(e) { listCollection.task(that.taskId).showPopup(e)};
+    rspan.appendChild(buttonSpan);
+    return rspan;
+  };
+
+  this.showPopup = function(e) {
+    var event = e || window.event;
+    if(event)
+      event.stopPropagation();
+
+    JPopup.reset();
+    JPopup.set({
+      text: 'Notes to the action:',
+      actions: {
+          input: listCollection.task(this.taskId).inputStatus(),
+          ok: listCollection.task(this.taskId).optionsMenu()
+        }
+      });
+    JPopup.relateTo(this.html);
+  };
+
+  this.inputStatus = function() {
+    var tarea = JHtml.textarea('jpopup-input-' + this.taskId, 200, '');
+    return tarea;
+  },
+
+  this.optionsMenu = function() {
     var options = JHtml.span();
     options.setAttribute('style','padding-right: 5px;');
     options.setAttribute('align','right');
@@ -548,8 +732,15 @@ function Task() {
       params += ',[TGrabber.issueStartDate, "' + today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate() + '"]'
     }
 
+    var notes = document.getElementById('jpopup-input-' + this.taskId);
+
+    if(notes) {
+      params += ',[TGrabber.issueNotes, "' + escape(notes.value) + '"]';
+    }
+  
     params += ']';
     TGrabber.editTask(this.taskId,'TGrabber.ticketChangeValue(this, ' + params + ', true)');
+    JPopup.reset();
   };
 
   this.setAssigned = function(assigned) {

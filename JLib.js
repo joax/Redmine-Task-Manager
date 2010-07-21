@@ -165,7 +165,15 @@ var JHtml = {
   h1: function() {
     return JHtml.createElement('H1');
   },
+   
+  h2: function() {
+    return JHtml.createElement('H2');
+  },
   
+  h3: function() {
+    return JHtml.createElement('H3');
+  },
+
   a: function() {
     return JHtml.createElement('A');
   },
@@ -295,7 +303,7 @@ var JHtml = {
     b.setAttribute('style',
              'font-size: 11px; color: ' + fcolor + '; background-color: ' + bcolor + '; ' + 
              'border: 1px solid ' + border + '; padding: 2px 5px 2px 5px; ' + 
-             '-moz-border-radius: 5px 5px 5px 5px; ' + 
+             '-moz-border-radius: 5px 5px 5px 5px; cursor: pointer;' + 
              '-webkit-border-radius: 5px 5px 5px 5px; ' + 
              '-moz-box-shadow: 0px 10px 10px ' + border + ' inset; margin-left: 3px;' + 
              '-webkit-box-shadow: 0px 10px 10px ' + border + ' inset;');

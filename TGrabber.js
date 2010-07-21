@@ -85,6 +85,47 @@ var TGrabber = {
  
   // --------------------- Worker methods -----------------------------
 
+  grabSubProjects: function(iframe) {
+    var subProjects = [];
+    var content = iframe.contentWindow.document.getElementById('content');
+    var projects = content.getElementsByTagName('LI');
+    for(var i=0;i<projects.length;i++) {
+      if(projects[i].innerHTML.match("Subprojects")) {
+        // Here are the subprojects!
+        var sp = projects[i].getElementsByTagName('A');
+        for(var s=0;s<sp.length;s++) {
+          var subProject = {};
+          subProject.title = sp[s].innerHTML;
+          var aux = sp[s].href.split('/');
+          subProject.id = aux[aux.length - 1];
+          subProjects[subProjects.length] = subProject;
+          TGrabber.getVersions('projects/' + subProject.id + '/');
+        }
+      }  
+    }
+    sortSubProjects = subProjects;
+  },
+
+  grabVersions: function(iframe) {
+    var versions = [];
+    var content = iframe.contentWindow.document.getElementById('roadmap');
+    if(content) {
+      var titles = content.childNodes;
+      for(var i=0; i<titles.length; i++){
+        if(titles[i].tagName == 'H3') {
+          var version = {};
+          version['name'] = titles[i].childNodes[0].innerHTML;
+          version['code'] = titles[i].childNodes[0].innerHTML.split(' ')[0];
+          version['link'] = titles[i].childNodes[0].href;
+          var aux = titles[i].childNodes[0].href.split('/');
+          version['id'] = parseInt(aux[aux.length - 1]);
+          versions[versions.length] = version;
+          filterCollection.addFilter([version['id']], 'versionId', version['name']);
+        }  
+      }
+    }
+  },
+
   grabFilters: function(iframe) {
     var filters = [];
     var content = iframe.contentWindow.document.getElementById('sidebar');
@@ -264,6 +305,9 @@ var TGrabber = {
     for(var i=0; i<arrayF.length;i++) {
       var field = arrayF[i][0];
       var value = arrayF[i][1];
+      if(field == 'notes') {
+        value = unescape(value);
+      }
       iframe.contentWindow.document.getElementById(field).value = value;
     }
     TGrabber.ticketSubmitUpdates(iframe, reload);
@@ -277,7 +321,7 @@ var TGrabber = {
   
   editTask: function(task, onload) {
     if(sortBaseUrl != '' && sortProject != '') {
-      var url = sortBaseUrl + 'issues/' + task;
+      var url = sortBaseUrl + 'issues/' + task + '/edit';
       TGrabber.setIframe(url, onload);
     } else {
       alert('No base URL setup!');
@@ -348,6 +392,24 @@ var TGrabber = {
 
   getTasks: function(url, onload) {
     TGrabber.setIframe(url, onload);
+  },
+
+  getVersions: function(project) {
+    if(sortBaseUrl != '') {
+      var url = sortBaseUrl + project + 'roadmap';
+      TGrabber.setIframe(url, "TGrabber.grabVersions(this)");
+    } else {
+      alert("No base URL defined!");  
+    }
+  },
+  
+  getSubProjects: function() {
+    if(sortBaseUrl != '' && sortProject != '') {
+      var url = sortBaseUrl + sortProject;
+      TGrabber.setIframe(url, "TGrabber.grabSubProjects(this)");
+    } else {
+      alert("No base URL defined!");  
+    }
   },
 
   getFilters: function() {
