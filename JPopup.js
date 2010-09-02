@@ -69,6 +69,12 @@ var JPopup = {
     window.addEventListener('click', function() { JPopup.reset(); }, false);
 
     document.body.appendChild(JPopup.div);
+   
+    // Focus on the input!
+    if(params.actions.input) {
+      if(params.actions.input.focus())
+        params.actions.input.focus();
+    }
   },
 
   getPosition: function(who){
@@ -84,7 +90,9 @@ var JPopup = {
   
   relateTo: function(obj) {
     var position = JPopup.getPosition(obj);
-    var topY = position.y + obj.offsetHeight;
+    var topY = position.y + 
+                  obj.offsetHeight + 
+                  Math.floor(JPopup.div.offsetHeight);
     var leftX = position.x + 
                   Math.floor(obj.offsetWidth / 2) + 
                   Math.floor(JPopup.div.offsetWidth / 2) + 

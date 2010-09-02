@@ -107,20 +107,23 @@ var TGrabber = {
   },
 
   grabVersions: function(iframe) {
-    var versions = [];
+    var versions = {};
     var content = iframe.contentWindow.document.getElementById('roadmap');
     if(content) {
       var titles = content.childNodes;
       for(var i=0; i<titles.length; i++){
         if(titles[i].tagName == 'H3') {
           var version = {};
-          version['name'] = titles[i].childNodes[0].innerHTML;
-          version['code'] = titles[i].childNodes[0].innerHTML.split(' ')[0];
-          version['link'] = titles[i].childNodes[0].href;
-          var aux = titles[i].childNodes[0].href.split('/');
+          version['name'] = titles[i].childNodes[1].innerHTML;
+          version['code'] = titles[i].childNodes[1].innerHTML.split(' ')[0];
+          // We need to split the project name too
+          if(!version['code'].match(/[0-9].([0-9](.[0-9]))/g)) {
+            version['code'] = titles[i].childNodes[1].innerHTML.split(' ')[2];
+          }
+          version['link'] = titles[i].childNodes[1].href;
+          var aux = titles[i].childNodes[1].href.split('/');
           version['id'] = parseInt(aux[aux.length - 1]);
-          versions[versions.length] = version;
-          filterCollection.addFilter([version['id']], 'versionId', version['name']);
+          filterCollection.addFilter([version['id']], 'versionId', version['name'], version['link']);
         }  
       }
     }
@@ -314,7 +317,7 @@ var TGrabber = {
   },
 
   ticketSubmitUpdates: function(iframe, reload) {
-    if (reload) iframe.setAttribute('onload','SortList.reload()');
+    if (reload) iframe.setAttribute('onload','SortList.softReload()');
     else iframe.setAttribute('onload','');
     iframe.contentWindow.document.getElementById(TGrabber.issueForm).submit();
   },

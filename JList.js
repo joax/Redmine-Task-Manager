@@ -71,9 +71,14 @@ function ListContainer(title) {
                                 'background-repeat: no-repeat; float: left;');
     var tasks = JHtml.div('tasks-count-' + this.title,
                                 'padding-top: 2px; float: left; margin-left: 10px;');
+
+    var dificulty = JHtml.div('dificulty-count-' + this.title,
+                                'padding-top: 2px; float: right; margin-right: 15px;');
+
     subTitleContainer.appendChild(bugs);
     subTitleContainer.appendChild(features);
     subTitleContainer.appendChild(tasks);
+    subTitleContainer.appendChild(dificulty);
   
     var titleH = JHtml.span();
     titleH.setAttribute('style','width: 36%; cursor: text; font-size: 14px; ' + 
@@ -171,13 +176,25 @@ function List(list) {
   };
   
   this.subTitle = function(title, field, ids) {
+
+    var dificulty = this.versionDificulty(ids);
+    var people    = this.versionPeople(ids);
+
     var sTitle = JHtml.div('subtitle-' + this.title + '-' + title);
-    sTitle.setAttribute('style','width: 100%; background-image: -webkit-gradient(linear, left top, left bottom, from(black), to(gray));' + 
+    sTitle.setAttribute('style','display: inline-block; width: 100%; background-image: -webkit-gradient(linear, left top, left bottom, from(black), to(gray));' + 
                         'background-image: -moz-linear-gradient(top left, black, gray); color: white; cursor: pointer;' +
-                        'font-size: 14px; font-weight: bold; padding: 3px; padding-left: 10px;');
+                        'font-size: 12px; font-weight: bold; padding: 3px;');
     if(ids)
       sTitle.setAttribute('onclick','listCollection.list("' + this.title + '").toggleTasks({ title: "' + title + '",  field: "' + field + '", ids: [ ' + ids.join(',') +' ]})');
-    sTitle.innerHTML = title;
+    var text = JHtml.div();
+    text.setAttribute('style','float: left; margin-left: 10px;');
+    text.innerHTML = title;
+    var options = JHtml.div();
+    options.setAttribute('style','float: right; width: 60px; font-size: 10px; padding-top: 2px; margin-right: 5px;');
+    options.innerHTML = 'VP ' + dificulty + '/' + people;
+    options.setAttribute('onclick','');
+    sTitle.appendChild(text);
+    sTitle.appendChild(options);
     return sTitle;
   };
 
@@ -346,6 +363,35 @@ function List(list) {
     }
     return total;
   };
+  
+  this.versionDificulty = function(ids) {
+    var total = 0;
+    if(!ids) return total;
+    for(var i=0;i<this.tasks.length;i++) {
+      for(var j=0;j<ids.length;j++) {
+        if(this.tasks[i].dificulty && this.tasks[i].versionId == ids[j]) {
+          total += this.tasks[i].dificulty;
+        }
+      }
+    }
+    return total;
+  };
+
+  this.versionPeople = function(ids) {
+    var persons = {};
+    var total = 0;
+    if(!ids) return total;
+    for(var i=0;i<this.tasks.length;i++) {
+      for(var j=0;j<ids.length;j++) {
+        if(this.tasks[i].assigned && this.tasks[i].versionId == ids[j]) {
+          persons[this.tasks[i].assigned] = this.tasks[i].assigned;
+        }
+      }
+    }
+    for(var e in persons)
+      total++;
+    return total;
+  };
 
   this.bugsCounter = function() {
     var total = 0;
@@ -379,13 +425,18 @@ function List(list) {
     $('bugs-count-' + this.title).innerHTML = this.bugsCounter() + ' bug' + (this.bugsCounter() == 1 ? "" : "s");     
     $('features-count-' + this.title).innerHTML = this.featuresCounter() + ' feature' + (this.featuresCounter() == 1 ? "" : "s");     
     $('tasks-count-' + this.title).innerHTML = this.tasksCounter() + ' task' + (this.tasksCounter() == 1 ? "" : "s");     
+    $('dificulty-count-' + this.title).innerHTML = 'Velocity: ' + this.dificulty();
   };
 
   // ------------------ Iframe load -------------------------------
 
   this.load = function() {
-
     $(this.containerName + '-loading').show();
+    this.tasks = [];
+    TGrabber.getTasks(this.url, "SortList.fill(this,'" + this.color + "','" + this.taskType + "','" + this.containerName + "')")
+  };
+  
+  this.softLoad = function() {
     this.tasks = [];
     TGrabber.getTasks(this.url, "SortList.fill(this,'" + this.color + "','" + this.taskType + "','" + this.containerName + "')")
   };
@@ -406,7 +457,7 @@ function List(list) {
       end.innerHTML = '&nbsp;';
       $(this.containerName).appendChild(end);
     } else {
-      var noElementsDiv = JHtml.div('',
+      var noElementsDiv = JHtml.div('no-elements',
               'padding: 20px; text-align: center; width: 100%;');
       noElementsDiv.innerHTML = 'There is no elements';
       $(this.containerName).innerHTML = '';
@@ -464,6 +515,7 @@ function Task() {
     this.id = this.type + '-issue-' + this.taskId;
     this.fullContainerId = this.id + '-full-container';
     this.html.id = this.id;
+    this.html.className = 'joax-redmine-task';
   };
 
   this.setColor = function(color) {
@@ -540,7 +592,7 @@ function Task() {
           tds[j].innerHTML = this.formatAssignedName(tds[j].childNodes[0]);
         }
       } else if (tds[j].innerHTML.indexOf('/issues/') != -1) {
-        tds[j].setAttribute('width','10%');
+        tds[j].setAttribute('width','8%');
         tds[j].setAttribute('align','center');
         var link = tds[j].getElementsByTagName('A')[0].innerHTML;
         this.taskId = link;
@@ -564,7 +616,7 @@ function Task() {
  
     var taskButtons = JHtml.td();
     taskButtons.appendChild(this.taskOptions());
-    taskButtons.setAttribute('width','10%');
+    taskButtons.setAttribute('width','8%');
     taskButtons.setAttribute('align','right');
     aux.getElementsByTagName('TR')[0].appendChild(taskButtons);  
     aux.setAttribute('style',

@@ -1,22 +1,25 @@
 function FilterCollection() {
   
   this.filters = {};
+  this.links = {};
 
-  this.addFilter = function(ids, field, title) {
-    if(!this.filters[title]) {
+  this.addFilter = function(ids, field, title, link) {
+
+    if(!this.links[link]) {
       this.filters[title] = {};
       this.filters[title].ids = ids;
       this.filters[title].field = field;
+      this.links[link] = title;
     } else {
       // Merge the ids with the current one
       for(var i=0;i<ids.length;i++) {
         var found = false;
-        for(var j=0;j<this.filters[title].ids.length;j++) {
-          if(this.filters[title].ids[j] == ids[i])
+        for(var j=0;j<this.filters[this.links[link]].ids.length;j++) {
+          if(this.filters[this.links[link]].ids[j] == ids[i])
             found = true;
         }
         if(!found)
-          this.filters[title].ids[this.filters[title].ids.length] = ids[i];
+          this.filters[this.links[link]].ids[this.filters[this.links[link]].ids.length] = ids[i];
       }
     }
   };
@@ -796,6 +799,12 @@ var SortList = {
       listCollection.lists[i].load();
     }
   },
+  
+  softReload: function() {
+    for(var i=0; i<listCollection.length(); i++) {
+      listCollection.lists[i].softLoad();
+    }
+  },
 
   doMagic: function() { 
     for(var i = 0;i<listCollection.length(); i++) {
@@ -805,18 +814,23 @@ var SortList = {
       
       var tasks   = $(container).childNodes;
       
-      Sortable.create(container, { 
-        elements: $$('#' + container + ' div'), 
-        containment: SortList.getListNames(),
-      });
+      if(tasks.length > 0 && $(tasks[0]).id != 'no-elements') { 
+        
+        console.log(Sortable.create(container, { 
+          tag: 'div', 
+          only: 'joax-redmine-task',
+          containment: SortList.getListNames(),
+        }));
       
-      for(var j=0; j<tasks.length; j++) { new Draggable( tasks[j].id ,{revert: true});  }
+        for(var j=0; j<tasks.length; j++) { new Draggable( tasks[j].id ,{revert: true});  }
+      }
     }
   },
   
   // --------------------- Individual Task ------------------------------
 
   renderFullTask: function( oArg ) {
+
     var d = JHtml.div('', 
                     'width: 95%; float: left; padding: 5px; margin: 0 auto;');
 
@@ -900,8 +914,8 @@ var SortList = {
    *  container = div where to set the tasks
    */
   fill: function(obj, color, task_type, container) {
+    var list = listCollection.getByContainer(container);
     if(obj.contentWindow.document.getElementsByTagName('table')[4]) {
-      var list = listCollection.getByContainer(container);
       if(list) {
         $(list.containerName).innerHTML = '';
         var iterator = obj.contentWindow.document.getElementsByTagName('table')[4].getElementsByTagName('tr');
@@ -915,9 +929,11 @@ var SortList = {
         if(parseInt(list.isFiltered) == 2) {
           list.groupBy(filterCollection);
         }
-        list.reloadSubTitle();
-        list.render();
       }
+    }
+    if (list) {
+      list.reloadSubTitle();
+      list.render();
     }
     TGrabber.garbageCollectOne(obj);
     SortList.doMagic();
