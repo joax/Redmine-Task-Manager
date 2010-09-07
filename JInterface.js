@@ -480,10 +480,10 @@ var JInterface = {
     var tracker = document.getElementById('task-add-tracker').value;
     var version_id = document.getElementById('task-add-version').value;
     var category_id = document.getElementById('task-add-category').value;
-    var title = document.getElementById('task-add-name').value;
-    var text = document.getElementById('task-add-text').value;
+    var title = escape(document.getElementById('task-add-name').value);
+    var text = escape(document.getElementById('task-add-text').value);
     var assignee = document.getElementById('task-add-assignee').value;
- 
+
     TGrabber.createTask(tracker, title, text, version_id, category_id, 1, 1, assignee, '', '', 4, '');
 
     $('menu_add_list_layer').innerHTML = '';
@@ -816,11 +816,11 @@ var SortList = {
       
       if(tasks.length > 0 && $(tasks[0]).id != 'no-elements') { 
         
-        console.log(Sortable.create(container, { 
+        Sortable.create(container, { 
           tag: 'div', 
           only: 'joax-redmine-task',
           containment: SortList.getListNames(),
-        }));
+        });
       
         for(var j=0; j<tasks.length; j++) { new Draggable( tasks[j].id ,{revert: true});  }
       }

@@ -288,17 +288,17 @@ var TGrabber = {
   issueRelations: 'relations',
   
   addTicketSetValues: function(iframe, status_id, title, text, tracker, target_version, category, priority,  dificulty, assignee, hours, notes) {
-    
+   
     iframe.contentWindow.document.getElementById(TGrabber.issueTrackerId).value = tracker;
     iframe.contentWindow.document.getElementById(TGrabber.issueStatusId).value = status_id;
-    iframe.contentWindow.document.getElementById(TGrabber.issueSubject).value = title;
+    iframe.contentWindow.document.getElementById(TGrabber.issueSubject).value = unescape(title);
 
     if(priority) iframe.contentWindow.document.getElementById(TGrabber.issuePriorityId).value = priority;
     if(target_version) iframe.contentWindow.document.getElementById(TGrabber.issueTargetVersion).value = target_version;
     if(hours) iframe.contentWindow.document.getElementById(TGrabber.issueEstimatedHours).value = hours;
     if(category) iframe.contentWindow.document.getElementById(TGrabber.issueCategoryId).value = category;
     if(dificulty) iframe.contentWindow.document.getElementById(TGrabber.issueDificulty).value = dificulty;
-    if(text) iframe.contentWindow.document.getElementById(TGrabber.issueDescription).innerHTML = text;
+    if(text) iframe.contentWindow.document.getElementById(TGrabber.issueDescription).innerHTML = unescape(text);
     if(assignee) iframe.contentWindow.document.getElementById(TGrabber.issueAssignedTo).value = assignee;
   
     TGrabber.ticketSubmitUpdates(iframe, true);
