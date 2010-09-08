@@ -146,7 +146,7 @@ var TGrabber = {
   },
 
   waitFilters: function() {
-    if(filtersList.length == 0) {
+    if(filtersList.length == 0 || filterCollection.length == 0) {
       setTimeout('TGrabber.waitFilters()',1000);
     } else {
       JInterface.start();
@@ -183,7 +183,11 @@ var TGrabber = {
     for(var i=0;i<priorities.length;i++) {
       TPriority.list[i] = [priorities[i].innerHTML, priorities[i].value];  
     }
-    
+
+    for(var i = TPriority.list.length - 1;i>=0;i--) {
+      filterCollection.addFilter([TPriority.list[i][1]], 'priorityId', TPriority.list[i][0], TPriority.list[i][0]);
+    }
+
     for(var i=0;i<assignee.length;i++) {
       TAssignee.list[i] = [assignee[i].innerHTML, assignee[i].value];
     }

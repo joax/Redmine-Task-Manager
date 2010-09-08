@@ -24,6 +24,26 @@ function FilterCollection() {
     }
   };
 
+  this.getFilters = function(field) {
+    var filtered = {};
+    if(field) {
+      count = 0;
+      for(var i in this.filters) {
+        if(this.filters[i].field == field) {
+          filtered[i] = this.filters[i];
+          count++;
+        }
+      }
+      filtered.field = field;
+      filtered.length = function() { return count; }
+    } else {
+      filtered = this.filters;
+      filtered.length = this.length;
+      filtered.field = '';
+    }
+    return filtered;
+  };
+
   this.length = function() {
     var length = 0;
     for(var i in this.filters) {
@@ -82,7 +102,7 @@ function ListCollection() {
   this.serializable = function() {
     var arrayT = [];
     for(var i=0;i<this.length();i++) {
-      arrayT[arrayT.length] = [this.lists[i].url, this.lists[i].color, this.lists[i].title, this.lists[i].isFiltered];
+      arrayT[arrayT.length] = [this.lists[i].url, this.lists[i].color, this.lists[i].title, this.lists[i].isFiltered, this.lists[i].fieldFiltered];
     }
     return arrayT;
   };
@@ -90,7 +110,7 @@ function ListCollection() {
   this.parse = function(array) {
     this.lists = [];
     for(var i=0;i<array.length;i++) {
-      this.addList(new List([array[i][0], array[i][1], array[i][2], array[i][3]])); 
+      this.addList(new List([array[i][0], array[i][1], array[i][2], array[i][3], array[i][4]])); 
     }
   };
 }
@@ -415,8 +435,10 @@ var JInterface = {
     if(filterCollection.length) {
       var toolsButtons = JHtml.div();
       toolsButtons.setAttribute('style','width: 90%; padding: 3px; text-align: center;');
-      var toolVersions = JHtml.button('', 'Apply Versions Filter','JInterface.applyFilters(filterCollection)');
+      var toolPriorities = JHtml.button('', 'Apply Priority Filter','JInterface.applyFilters(filterCollection.getFilters("priorityId"))');
+      var toolVersions = JHtml.button('', 'Apply Versions Filter','JInterface.applyFilters(filterCollection.getFilters("versionId"))');
       var toolNoVersions = JHtml.button('', 'No Filters','JInterface.applyFilters(null)');
+      toolsButtons.appendChild(toolPriorities);
       toolsButtons.appendChild(toolVersions);
       toolsButtons.appendChild(toolNoVersions);
       menuToolsList.appendChild(toolsButtons);
@@ -541,7 +563,7 @@ var JInterface = {
       }
     } else {
       for(var i=0;i<listCollection.length();i++){
-        filtersDisplay[filtersDisplay.length] = new List([listCollection.lists[i].url, listCollection.lists[i].color, listCollection.lists[i].title, listCollection.lists[i].isFiltered]);
+        filtersDisplay[filtersDisplay.length] = new List([listCollection.lists[i].url, listCollection.lists[i].color, listCollection.lists[i].title, listCollection.lists[i].isFiltered, listCollection.lists[i].fieldFiltered]);
       }
     }
     SortList.init(filtersDisplay);
@@ -808,21 +830,33 @@ var SortList = {
 
   doMagic: function() { 
     for(var i = 0;i<listCollection.length(); i++) {
+
+      list        = listCollection.lists[i];
       container   = listCollection.lists[i].containerName;
       colorf      = listCollection.lists[i].color;
       task_type   = listCollection.lists[i].taskType;
       
       var tasks   = $(container).childNodes;
       
-      if(tasks.length > 0 && $(tasks[0]).id != 'no-elements') { 
-        
-        Sortable.create(container, { 
-          tag: 'div', 
-          only: 'joax-redmine-task',
-          containment: SortList.getListNames(),
-        });
+      Sortable.create(container, { 
+        tag: 'div', 
+        only: 'joax-redmine-task',
+        containment: SortList.getListNames(),
+        dropOnEmpty: true,
+      });
       
-        for(var j=0; j<tasks.length; j++) { new Draggable( tasks[j].id ,{revert: true});  }
+      if(tasks.length > 0 && $(tasks[0]).id != 'no-elements') { 
+        for(var j=0; j<tasks.length; j++) { 
+          new Draggable( 
+            tasks[j].id ,
+            {
+              revert: true, 
+              onEnd: function(d) {
+                list.reordered(d.element.parentNode, list.fieldFiltered);
+              }
+            }
+          );  
+        }
       }
     }
   },
@@ -927,7 +961,7 @@ var SortList = {
           list.tasks[list.tasks.length] = t;
         }
         if(parseInt(list.isFiltered) == 2) {
-          list.groupBy(filterCollection);
+          list.groupBy(filterCollection.getFilters(list.fieldFiltered));
         }
       }
     }

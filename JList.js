@@ -144,6 +144,7 @@ function List(list) {
   this.container = new ListContainer(this.title);
 
   this.isFiltered = list[3] ? list[3] : 0;
+  this.fieldFiltered = list[4] ? list[4] : '';
 
   this.task = function(taskId) {
     for(var i=0;i<this.tasks.length;i++) {
@@ -174,7 +175,37 @@ function List(list) {
     else
       st.style.color = 'white';
   };
-  
+ 
+  // If reordered is been called, means that
+  // a task has been moved around.
+  // Lets check if the task has been moved
+  // out of its filter. If so, then the property
+  // of that task needs to be changed!
+  // if there is variuos IDs for a filter, then
+  // the first element of that filter will
+  // be selected for.
+  this.reordered = function(divElement, filterField) {
+    if(!divElement) return null;
+    var tasks = $(divElement).childNodes;
+    var filterValue = 0;
+    console.log(filterField);
+    for(var i=0;i<tasks.length; i++) {
+      var task = tasks[i];
+      if(task.className.match('joax-redmine-title')) {
+        filterValue = task.getAttribute('titleId');
+      } else {
+        task_id = task.getAttribute('taskId');
+        taskChanged = listCollection.task(task_id);
+        if(parseInt(taskChanged.priorityId) != parseInt(filterValue)) {
+          if(filterField == 'priorityId' && taskChanged.setPriority)
+            taskChanged.setPriority(filterValue, false);
+          else if(filterField == 'versionId' && taskChanged.setVersion)
+            taskChanged.setVersion(filterValue, false);
+        }
+      }
+    }
+  };
+
   this.subTitle = function(title, field, ids) {
 
     var dificulty = this.versionDificulty(ids);
@@ -195,6 +226,9 @@ function List(list) {
     options.setAttribute('onclick','');
     sTitle.appendChild(text);
     sTitle.appendChild(options);
+    sTitle.className = 'joax-redmine-task joax-redmine-title';
+    ids_joined = ids ? ids.join(',') : '';
+    sTitle.setAttribute('titleId',ids_joined);
     return sTitle;
   };
 
@@ -202,25 +236,28 @@ function List(list) {
   // id - id to identify
   // field - field to identify with
   this.groupBy = function(fCol) {
+
     if(fCol.length()) {
       var new_order = [];
-      for(var i in fCol.filters){
-        var ids = fCol.filters[i].ids;
-        var field = fCol.filters[i].field;
-        // Insert the title
-        var stitle = {};
-        stitle.html = this.subTitle(i, field, ids);
-        stitle.title = i;
-        new_order[new_order.length] = stitle;
-        for(var t=0;t<this.tasks.length;t++) {
-          for(var d =0;d<ids.length;d++) {
-            if(this.tasks[t][field] == ids[d]) {
-              new_order[new_order.length] = this.tasks[t];  
+      for(var i in fCol){
+        if(fCol[i].ids) {
+          var ids = fCol[i].ids;
+          var field = fCol[i].field;
+          // Insert the title
+          var stitle = {};
+          stitle.html = this.subTitle(i, field, ids);
+          stitle.title = i;
+          new_order[new_order.length] = stitle;
+          for(var t=0;t<this.tasks.length;t++) {
+            for(var d=0;d<ids.length;d++) {
+              if(this.tasks[t][field] == ids[d]) {
+                new_order[new_order.length] = this.tasks[t];  
+              }
             }
           }
         }
       }
-
+      
       if(new_order.length < this.tasks.length + fCol.length()) {
         var stitle = {};
         stitle.html = this.subTitle('The rest');
@@ -228,10 +265,12 @@ function List(list) {
         new_order[new_order.length] = stitle;
         for(var t=0;t<this.tasks.length;t++) {
           var found = false;
-          for(var i in fCol.filters) {
-            for(var d=0;d<fCol.filters[i].ids.length;d++) {
-              if(this.tasks[t][fCol.filters[i].field] == fCol.filters[i].ids[d]) {
-                found = true;
+          for(var i in fCol) {
+            if(fCol[i].ids) {
+              for(var d=0;d<fCol[i].ids.length;d++) {
+                if(this.tasks[t][fCol[i].field] == fCol[i].ids[d]) {
+                  found = true;
+                }
               }
             }
           }
@@ -243,6 +282,7 @@ function List(list) {
       this.tasks = [];
       this.tasks = new_order;
       this.isFiltered = 2;
+      this.fieldFiltered = fCol.field;
       this.render();
     } else {
       this.load();
@@ -516,6 +556,7 @@ function Task() {
     this.fullContainerId = this.id + '-full-container';
     this.html.id = this.id;
     this.html.className = 'joax-redmine-task';
+    this.html.setAttribute('taskId',this.taskId);
   };
 
   this.setColor = function(color) {
@@ -552,8 +593,8 @@ function Task() {
         j-=1;
       } else if(tds[j].className == 'fixed_version') {
         if(tds[j].childNodes.length) {
-          var version = tds[j].childNodes[0].innerHTML;
-          this.versionId = parseInt(TVersion.code(version));
+          var version = tds[j].childNodes[0].href.split('/')[5];
+          this.versionId = parseInt(version);
         } else {
           this.versionId = null;
         }
@@ -701,6 +742,10 @@ function Task() {
       options.appendChild(buttonReopen);
       options.appendChild(buttonPush);
     }
+    // And we add the comment button :)
+    buttonComment = JHtml.greyButton('Comment','listCollection.task("' + this.taskId + '").setStatus(' + this.statusId + ')');
+    options.appendChild(buttonComment);
+
     return options;
   };
 
@@ -797,6 +842,14 @@ function Task() {
 
   this.setAssigned = function(assigned) {
     TGrabber.editTask(this.taskId,'TGrabber.ticketChangeValue(this, [[TGrabber.issueAssignedTo, ' + assigned +']], true)');
+  };
+  
+  this.setPriority = function(priority, reload) {
+    TGrabber.editTask(this.taskId,'TGrabber.ticketChangeValue(this, [[TGrabber.issuePriorityId, ' + priority +']], ' + reload + ')');
+  };
+  
+  this.setVersion = function(version, reload) {
+    TGrabber.editTask(this.taskId,'TGrabber.ticketChangeValue(this, [[TGrabber.issueTargetVersion, ' + version +']], ' + reload + ')');
   };
 
   this.setDificulty = function(dificulty) {
