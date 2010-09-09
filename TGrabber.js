@@ -52,15 +52,19 @@ var TGrabber = {
   },
 
   garbageCollect: function() {
-     var iframes = document.getElementsByTagName('iframe');
-     for(var i=0; i<iframes.length; i++) {
-       for(var j=0; j<iframesLoaded.length; j++) {
-         if(iframesLoaded[j] == iframes[i].id) {
-           document.body.removeChild(iframes[i]);
-           iframesLoaded[j] = null;
-         }
-       }
-     }
+    try {
+      var iframes = document.getElementsByTagName('iframe');
+      for(var i=0; i<iframes.length; i++) {
+        for(var j=0; j<iframesLoaded.length; j++) {
+          if(iframes[i].id && iframesLoaded[j] == iframes[i].id) {
+            document.body.removeChild(iframes[i]);
+            iframesLoaded[j] = null;
+          }
+        }
+      }
+    } catch(e) {
+      console.log('Error on Garbage Collection. Element without an ID?');
+    }
   },
 
   // --------------------- Feeds methods ------------------------------
@@ -160,7 +164,7 @@ var TGrabber = {
     var trackers    = c.getElementById(TGrabber.issueTrackerId).getElementsByTagName('option');
     var statuses    = c.getElementById(TGrabber.issueStatusId).getElementsByTagName('option');
     var priorities  = c.getElementById(TGrabber.issuePriorityId).getElementsByTagName('option');
-    var categories  = c.getElementById(TGrabber.issueCategoryId).getElementsByTagName('option');
+    var categories  = c.getElementById(TGrabber.issueCategoryId) ? c.getElementById(TGrabber.issueCategoryId).getElementsByTagName('option') : [];
     var versions    = c.getElementById(TGrabber.issueTargetVersion).getElementsByTagName('option');
     var assignee    = c.getElementById(TGrabber.issueAssignedTo).getElementsByTagName('option');
   

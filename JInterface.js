@@ -1,3 +1,36 @@
+function Favicon() {
+  
+  this.isChrome = 0;
+  this.iframe = null;
+
+  this.init = function() {
+    document.head = document.head || document.getElementsByTagName('head')[0];
+    // Browser sniffing :`(
+    if (/Chrome/.test(navigator.userAgent)) {
+      this.isChrome = 1;
+      this.iframe = document.createElement('iframe');
+      this.iframe.src = 'about:blank';
+      this.iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    };
+  };
+
+  this.changeFavicon = function(src) {
+    var link = document.createElement('link'),
+    oldLink = document.getElementById('dynamic-favicon');
+    link.id = 'dynamic-favicon';
+    link.rel = 'shortcut icon';
+    link.href = src;
+    if (oldLink) {
+      document.head.removeChild(oldLink);
+    };
+    document.head.appendChild(link);
+    if (this.isChrome) {
+      this.iframe.src += '';
+    };
+  };
+};
+
 function FilterCollection() {
   
   this.filters = {};
@@ -304,6 +337,8 @@ var iframesLoaded = [];
 
 var JInterface = {
 
+  favIcon: "https://www.writeonglass.com/favicon.ico",
+
   serializePreferences: function(arrayT) {
     var str = arrayT[0].join("^#^");
     for(var i = 1; i<arrayT.length; i++) {
@@ -531,6 +566,9 @@ var JInterface = {
   },
 
   init: function(height) {
+    // Set the favicon!!
+    favicon = new Favicon();
+    favicon.changeFavicon(this.favIcon);
     var screenHeight = window.innerHeight - 200;
     JInterface.clean();
     JInterface.getURL();
@@ -567,6 +605,7 @@ var JInterface = {
       }
     }
     SortList.init(filtersDisplay);
+    JInterface.refresh(true);
   },
 
   detectMe: function() {
@@ -599,7 +638,20 @@ var JInterface = {
         $('main').getElementsByTagName('DIV')[i].style.display = 'none';
     }
   },
- 
+
+  refresh: function(init) {
+    if(!init) {
+      for(var i=0;i<listCollection.lists.length;i++)
+        listCollection.lists[i].softLoad();
+      // And we do some garbage collection
+
+      setTimeout("TGrabber.garbageCollect()",2000);
+    }
+    // TODO: 
+    // - Refresh options in 'Tools'
+    // - Timer options in 'Tools'
+    setTimeout("JInterface.refresh(false)",60*1000);
+  },
 }
 
 var SortList = {
