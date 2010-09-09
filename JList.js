@@ -125,7 +125,7 @@ function List(list) {
   this.title = list[2];
   this.tasks = [];
   this.template = [];
-
+  
   // Properties are the ones we set to the
   // items integrated to the list.
   // For example, when a bug is moved to a task
@@ -237,6 +237,7 @@ function List(list) {
   // field - field to identify with
   this.groupBy = function(fCol) {
 
+
     if(fCol.length()) {
       var new_order = [];
       for(var i in fCol){
@@ -251,6 +252,9 @@ function List(list) {
           for(var t=0;t<this.tasks.length;t++) {
             for(var d=0;d<ids.length;d++) {
               if(this.tasks[t][field] == ids[d]) {
+                if(field == 'priorityId') {
+                  this.tasks[t].setColor(this.tasks[t].priorityColor[ids[d]]);  
+                }
                 new_order[new_order.length] = this.tasks[t];  
               }
             }
@@ -522,6 +526,29 @@ function Task() {
   this.updated = null;
   this.hours = null;
   this.description = null;
+  this.priorityColor = [
+      "#FFFFFF", 
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF", // Low
+      "#FFFFDD", // Normal
+      "#FFEE88", // High
+      "#FFDD88", // Urgent
+      "#FFEE55", // Inmediate
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFF22", // GoList
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+      "#FFFFFF",
+    ];
+
 
   // Full task view
   this.fullContainerId = null;
@@ -845,7 +872,8 @@ function Task() {
   };
   
   this.setPriority = function(priority, reload) {
-    TGrabber.editTask(this.taskId,'TGrabber.ticketChangeValue(this, [[TGrabber.issuePriorityId, ' + priority +']], ' + reload + ')');
+    TGrabber.editTask(this.taskId,'TGrabber.ticketChangeValue(this, [[TGrabber.issuePriorityId, ' + priority +']], ' + reload + ')'); 
+    this.setColor(this.priorityColor[parseInt(priority)]);
   };
   
   this.setVersion = function(version, reload) {

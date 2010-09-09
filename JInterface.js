@@ -326,11 +326,11 @@ var JInterface = {
   },
 
   storePreferences: function() {
-    SortList.createCookie('RedmineTasker', JInterface.serializePreferences(listCollection.serializable()), 10);
+    SortList.createCookie('RedmineTasker-' + sortProject, JInterface.serializePreferences(listCollection.serializable()), 10);
   },
 
   retrievePreferences: function() {
-    var arrayP = SortList.readCookie('RedmineTasker');
+    var arrayP = SortList.readCookie('RedmineTasker-' + sortProject);
     if(arrayP && arrayP.length > 0) {
       listCollection.lists = [];
       listCollection.parse(JInterface.unserializePreferences(arrayP));
