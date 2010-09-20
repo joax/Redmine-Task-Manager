@@ -470,12 +470,30 @@ var JInterface = {
     if(filterCollection.length) {
       var toolsButtons = JHtml.div();
       toolsButtons.setAttribute('style','width: 90%; padding: 3px; text-align: center;');
-      var toolPriorities = JHtml.button('', 'Apply Priority Filter','JInterface.applyFilters(filterCollection.getFilters("priorityId"))');
-      var toolVersions = JHtml.button('', 'Apply Versions Filter','JInterface.applyFilters(filterCollection.getFilters("versionId"))');
-      var toolNoVersions = JHtml.button('', 'No Filters','JInterface.applyFilters(null)');
-      toolsButtons.appendChild(toolPriorities);
-      toolsButtons.appendChild(toolVersions);
-      toolsButtons.appendChild(toolNoVersions);
+      
+      var refreshDiv      = JHtml.div('','width: 150px; padding: 4px; border: 1px solid #c0c0c0; margin: 10px;');
+      refreshLabel        = JHtml.label('refresh-rate');
+      refreshLabel.innerHTML = 'Refresh Rate:';
+      var refreshRate     = JHtml.select('refresh-rate','JInterface.refresh()');
+      refreshRate.appendChild(JHtml.option(-1,'Not refresh'));
+      refreshRate.appendChild(JHtml.option((10*60*1000),'10 Minutes'));
+      refreshRate.appendChild(JHtml.option((5*60*1000),'5 Minutes'));
+      refreshRate.appendChild(JHtml.option((2*60*1000),'2 Minutes'));
+      refreshRate.appendChild(JHtml.option((1*60*1000),'1 Minutes'));
+      refreshDiv.appendChild(refreshLabel);
+      refreshDiv.appendChild(refreshRate);
+     
+
+      var toolDiv      = JHtml.div('','width: 150px; padding: 4px; border: 1px solid #c0c0c0; margin: 10px;');
+      var toolPriorities  = JHtml.button('', 'Apply Priority Filter','JInterface.applyFilters(filterCollection.getFilters("priorityId"))');
+      var toolVersions    = JHtml.button('', 'Apply Versions Filter','JInterface.applyFilters(filterCollection.getFilters("versionId"))');
+      var toolNoVersions  = JHtml.button('', 'No Filters','JInterface.applyFilters(null)');
+      toolDiv.appendChild(toolPriorities);
+      toolDiv.appendChild(toolVersions);
+      toolDiv.appendChild(toolNoVersions);
+
+      toolsButtons.appendChild(refreshDiv);
+      toolsButtons.appendChild(toolDiv);
       menuToolsList.appendChild(toolsButtons);
     }
 
@@ -567,8 +585,8 @@ var JInterface = {
 
   init: function(height) {
     // Set the favicon!!
-    favicon = new Favicon();
-    favicon.changeFavicon(this.favIcon);
+    //favicon = new Favicon();
+    //favicon.changeFavicon(this.favIcon);
     var screenHeight = window.innerHeight - 200;
     JInterface.clean();
     JInterface.getURL();
@@ -650,7 +668,10 @@ var JInterface = {
     // TODO: 
     // - Refresh options in 'Tools'
     // - Timer options in 'Tools'
-    setTimeout("JInterface.refresh(false)",60*1000);
+    var rate = $('refresh-rate').value
+    if(rate > 0) {
+      setTimeout("JInterface.refresh(false)",rate);
+    }
   },
 }
 
@@ -746,7 +767,7 @@ var SortList = {
   taskTypeName: function(title) { return title.split(' ').join('-'); },
 
   reorderLists: function() {
-    var width = 95 / listCollection.length();
+    var width = 97 / listCollection.length();
     for(var i=0; i<listCollection.length();i++) { 
       $(listCollection.lists[i].containerName).parentNode.style.width = width + '%'; 
     }

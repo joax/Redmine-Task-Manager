@@ -18,7 +18,7 @@ function ListContainer(title) {
 
   this.renderBucketContainer = function() {
     var bucketc = JHtml.div(SortList.bucketContainerName(this.title),  
-                                'width: 100%; margin: 0px; ' + 
+                                'width: 100%; margin: 0px; background-color: #B5BDC1;' + 
                                 'padding: 0px;  height: ' + (configHeight - 38) + 'px; ' + 
                                 '-moz-box-shadow: 0px -3px 5px 0px #c0c0c0 inset;' + 
                                 '-webkit-box-shadow: 0px -3px 5px 0px #c0c0c0 inset;' + 
@@ -42,7 +42,7 @@ function ListContainer(title) {
 
   this.renderContainer = function() {
     var newContainer = JHtml.div(SortList.containerName(this.title), 
-                                'overflow: hidden; background-color: #ffffff; ' +
+                                'overflow: hidden; background-color: #FFFFFF; ' +
                                 'border: 1px solid #c0c0c0; padding: 0px; ' +
                                 '-webkit-border-radius:15px 15px 0px 0px; ' + 
                                 'float: left; width: 12%; margin-left: 10px; ' + 
@@ -50,7 +50,7 @@ function ListContainer(title) {
                                 'height: ' + configHeight + 'px; padding-top: 0px; position: relative');
     var titleContainer = JHtml.div('',  
                                 'width: 95%; margin-top: 0px; ' + 
-                                'font-size: 12px; height: 20px; font-weight: bold; ' + 
+                                'font-size: 12px; height: 24px; font-weight: bold; ' + 
                                 'padding-top: 2px; padding-bottom: 2px; ' +
                                 'text-align: left; padding-left: 20px;');
     var subTitleContainer = JHtml.div('subtitle-' + this.title,
@@ -88,7 +88,7 @@ function ListContainer(title) {
     var rawOptions = JHtml.div('raw-options-' + this.title, 
                                 'font-size: 10px; float: right; width: 10%; padding-top: 4px;');
     var rawLink = JHtml.a();
-    rawLink.setAttribute('style', 'padding-left: 20px; background-image: url(/images/copy.png); ' + 
+    rawLink.setAttribute('style', 'padding-left: 20px; padding-bottom: 3px; background-image: url(/images/copy.png); ' + 
                                 'background-repeat: no-repeat; cursor: pointer;');
     rawLink.setAttribute('onclick', 'listCollection.list("' + this.title + '").getRawList(true);');
     rawLink.innerHTML = 'Changelog';
@@ -106,6 +106,15 @@ function ListContainer(title) {
       colorPick.setAttribute('onclick','listCollection.list("' + this.title + '").setColor("' + color + '")');
       colorOptions.appendChild(colorPick);
     }
+    // and we add the automatic coloring:
+    var colorPick = JHtml.div('',
+                            'cursor: pointer; float: right; width: 10px; height: 10px; font-size: 10px;' + 
+                            'margin: 1px; border: 1px solid #c0c0c0; background-color: #FFFFFF;' + 
+                            'text-align: center;');
+    colorPick.setAttribute('onclick','listCollection.list("' + this.title + '").setAutoColor()');
+    colorPick.innerHTML = 'a';
+    colorOptions.appendChild(colorPick);
+
     titleContainer.appendChild(titleH);
     titleContainer.appendChild(colorOptions);
     titleContainer.appendChild(rawOptions);
@@ -185,10 +194,11 @@ function List(list) {
   // the first element of that filter will
   // be selected for.
   this.reordered = function(divElement, filterField) {
+    if(listCollection.lists[0].isFiltered == 0) return null;
+    console.log('then?');
     if(!divElement) return null;
     var tasks = $(divElement).childNodes;
     var filterValue = 0;
-    console.log(filterField);
     for(var i=0;i<tasks.length; i++) {
       var task = tasks[i];
       if(task.className.match('joax-redmine-title')) {
@@ -196,11 +206,13 @@ function List(list) {
       } else {
         task_id = task.getAttribute('taskId');
         taskChanged = listCollection.task(task_id);
-        if(parseInt(taskChanged.priorityId) != parseInt(filterValue)) {
-          if(filterField == 'priorityId' && taskChanged.setPriority)
-            taskChanged.setPriority(filterValue, false);
-          else if(filterField == 'versionId' && taskChanged.setVersion)
-            taskChanged.setVersion(filterValue, false);
+        if(taskChanged) {
+          if(taskChanged.priorityId && parseInt(taskChanged.priorityId) != parseInt(filterValue)) {
+            if(taskChanged.setPriority && filterField == 'priorityId' && taskChanged.setPriority)
+              taskChanged.setPriority(filterValue, false);
+            else if(filterField == 'versionId' && taskChanged.setVersion)
+              taskChanged.setVersion(filterValue, false);
+          }
         }
       }
     }
@@ -213,7 +225,7 @@ function List(list) {
 
     var sTitle = JHtml.div('subtitle-' + this.title + '-' + title);
     sTitle.setAttribute('style','display: inline-block; width: 100%; background-image: -webkit-gradient(linear, left top, left bottom, from(black), to(gray));' + 
-                        'background-image: -moz-linear-gradient(top left, black, gray); color: white; cursor: pointer;' +
+                        'background-image: -moz-linear-gradient(top center, black, gray); color: white; cursor: pointer;' +
                         'font-size: 12px; font-weight: bold; padding: 3px;');
     if(ids)
       sTitle.setAttribute('onclick','listCollection.list("' + this.title + '").toggleTasks({ title: "' + title + '",  field: "' + field + '", ids: [ ' + ids.join(',') +' ]})');
@@ -236,8 +248,6 @@ function List(list) {
   // id - id to identify
   // field - field to identify with
   this.groupBy = function(fCol) {
-
-
     if(fCol.length()) {
       var new_order = [];
       for(var i in fCol){
@@ -344,7 +354,7 @@ function List(list) {
           text += '<td>' + TStatus.decode(this.tasks[i].statusId)  + '</td>';
           text += '<td>' + TPriority.decode(this.tasks[i].priorityId)  + '</td>';
         }
-        text += '<td>' + this.tasks[i].subject  + '</td>';
+        text += '<td style="color: #000;">' + this.tasks[i].subject  + '</td>';
         text += '</tr>';
       }
     }
@@ -385,6 +395,15 @@ function List(list) {
   this.setTitle = function(title) {
     this.title = title;
     $(this.containerName).parentNode.childNodes[0].childNodes[0].innerHTML = title;
+    JInterface.storePreferences();
+  };
+
+  this.setAutoColor = function() {
+    this.color = 'auto';
+    for(var i=0;i<this.tasks.length;i++) {
+      if(this.tasks[i].trackerId)
+        this.tasks[i].setColor(this.tasks[i].priorityColor[this.tasks[i].priorityId]);
+    }
     JInterface.storePreferences();
   };
 
@@ -492,21 +511,15 @@ function List(list) {
     if(this.tasks.length) {
       for(var i = 0; i<this.tasks.length; i++)
         $(this.containerName).appendChild(this.tasks[i].html);
-
-      var end = JHtml.div();
-      end.setAttribute('style','width: 100%; height: 2px; border-top: 1px solid #c0c0c0; ' +
-                ' border-bottom: 1px solid #c0c0c0; font-size: 2px;' +
-                '-moz-box-shadow: 0px 5px 5px 0px #c0c0c0;' +
-                '-webkit-box-shadow: 0px 3px 3px 0px #c0c0c0;');
+    }
+      var end = JHtml.div('no-elements','');
+      end.setAttribute('style','width: 100%; height: 200px; border-top: 1px solid #c0c0c0; ' +
+                'background: url(/images/back_end_tasks.png) 50% 0%; background-repeat: repeat-x;' + 
+                ' font-size: 2px;');
+                //'-moz-box-shadow: 0px 5px 5px 0px #c0c0c0;' +
+                //'-webkit-box-shadow: 0px 3px 3px 0px #c0c0c0;');
       end.innerHTML = '&nbsp;';
       $(this.containerName).appendChild(end);
-    } else {
-      var noElementsDiv = JHtml.div('no-elements',
-              'padding: 20px; text-align: center; width: 100%;');
-      noElementsDiv.innerHTML = 'There is no elements';
-      $(this.containerName).innerHTML = '';
-      $(this.containerName).appendChild(noElementsDiv);
-    }
   };
 };
 
@@ -648,7 +661,8 @@ function Task() {
         tds[j].parentNode.removeChild(tds[j]);
         j -= 1;
       } else if(tds[j].className == 'subject') {
-        this.subject = tds[j].innerHTML;
+        this.subject = tds[j].childNodes[0].innerHTML;
+        tds[j].innerHTML = this.subject + '<span id="task-asigned-' + this.taskId + '"></span>';
       } else if(tds[j].className == 'assigned_to') {
         tds[j].setAttribute('width','8%');
         tds[j].setAttribute('align','center');
@@ -671,10 +685,10 @@ function Task() {
     
     if(this.trackerId == TTracker.FEATURE) {
       this.linkToTask.setAttribute('style','background-image: url(/images/package.png);' + 
-                                'background-repeat: no-repeat; padding-left: 20px;');
+                                'background-repeat: no-repeat; padding-left: 20px; padding-bottom: 3px;');
     } else if (this.trackerId == TTracker.BUG){
       this.linkToTask.setAttribute('style','background-image: url(/images/warning.png);' + 
-                               'background-repeat: no-repeat; padding-left: 20px;');
+                               'background-repeat: no-repeat; padding-left: 20px; padding-bottom: 3px;');
     }
 
     var dificultyOps = JHtml.td();
@@ -688,11 +702,15 @@ function Task() {
     taskButtons.setAttribute('align','right');
     aux.getElementsByTagName('TR')[0].appendChild(taskButtons);  
     aux.setAttribute('style',
-            'cursor: pointer; border-top: 1px solid #c0c0c0; padding-top: 2px; padding-bottom: 2px;');
+            'cursor: move; border-top: 1px solid #c0c0c0; padding-top: 2px; padding-bottom: 2px;');
 
     this.html =  aux;
-
-    this.setColor(this.color);
+  
+    if(this.color == 'auto') {
+      this.setColor(this.priorityColor[this.priorityId]);
+    } else {
+      this.setColor(this.color);
+    }
     this.setId();
 
     menuFull.appendChild(this.fullTaskMenu());
@@ -779,9 +797,9 @@ function Task() {
   this.showFull = function(menu) {
     if($(this.fullContainerId)) {
       $(this.id).removeChild($(this.fullContainerId));
-      menu.setAttribute('style','background-image: url(/images/arrow_collapsed.png); background-repeat: no-repeat;');
+      menu.setAttribute('style','background-image: url(/images/arrow_collapsed_2.png); background-repeat: no-repeat; height: 20px; cursor: pointer;');
     } else {
-      menu.setAttribute('style','background-image: url(/images/arrow_expanded.png); background-repeat: no-repeat;');
+      menu.setAttribute('style','background-image: url(/images/arrow_down_2.png); background-repeat: no-repeat; height: 20px; cursor: pointer;');
       var c = JHtml.div(this.fullContainerId,'width: 99%; display: inline-block;');
       $(this.id).appendChild(c);
       TGrabber.getFullTask(this.taskId, this.fullContainerId);
@@ -790,7 +808,7 @@ function Task() {
 
   this.fullTaskMenu = function(id) {
     var d = JHtml.div();
-    d.setAttribute('style','background-image: url(/images/arrow_collapsed.png); background-repeat: no-repeat;');
+    d.setAttribute('style','background-image: url(/images/arrow_collapsed_2.png); background-repeat: no-repeat; height: 20px; cursor: pointer;');
     d.innerHTML = '&nbsp;';
     d.setAttribute('onclick','listCollection.task("' + this.taskId + '").showFull(this);');
     return d;

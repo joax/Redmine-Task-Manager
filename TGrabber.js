@@ -52,19 +52,24 @@ var TGrabber = {
   },
 
   garbageCollect: function() {
-    try {
-      var iframes = document.getElementsByTagName('iframe');
-      for(var i=0; i<iframes.length; i++) {
-        for(var j=0; j<iframesLoaded.length; j++) {
+    var iframes = document.getElementsByTagName('iframe');
+    for(var i=0; i<iframes.length; i++) {
+      for(var j=0; j<iframesLoaded.length; j++) {
+        try {
           if(iframes[i].id && iframesLoaded[j] == iframes[i].id) {
             document.body.removeChild(iframes[i]);
             iframesLoaded[j] = null;
           }
+        } catch(e) {
+          console.log('Error happened when cleaning iframes.'); 
         }
       }
-    } catch(e) {
-      console.log('Error on Garbage Collection. Element without an ID?');
     }
+    TGrabber.cleanIframeCache();
+  },
+
+  cleanIframeCache: function() {
+    iframesLoaded = [];
   },
 
   // --------------------- Feeds methods ------------------------------
