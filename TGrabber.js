@@ -1,5 +1,33 @@
 
 var TGrabber = {
+ 
+  // ---------------------- AJAX calls -------------------------------
+
+  setXMLAjax: function(url, onload) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.onreadystatechange = function() {
+      if(xhr.readyStatu == 4) {
+        if(xhr.status == 200) {
+          onload(xhr.responseXML);
+        }
+      }
+    }
+    xhr.send(null);
+  },
+
+  setPlainAjax: function(url, onload) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.onreadystatechange = function() {
+      if(xhr.readyStatu == 4) {
+        if(xhr.status == 200) {
+          onload(xhr.responseText);
+        }
+      }
+    }
+    xhr.send(null);
+  },
 
   // ---------------------- Iframes management -----------------------
 
@@ -24,18 +52,91 @@ var TGrabber = {
   },
 
   garbageCollect: function() {
-     var iframes = document.getElementsByTagName('iframe');
-     for(var i=0; i<iframes.length; i++) {
-       for(var j=0; j<iframesLoaded.length; j++) {
-         if(iframesLoaded[j] == iframes[i].id) {
-           document.body.removeChild(iframes[i]);
-           iframesLoaded[j] = null;
-         }
-       }
-     }
+    var iframes = document.getElementsByTagName('iframe');
+    for(var i=0; i<iframes.length; i++) {
+      for(var j=0; j<iframesLoaded.length; j++) {
+        try {
+          if(iframes[i].id && iframesLoaded[j] == iframes[i].id) {
+            document.body.removeChild(iframes[i]);
+            iframesLoaded[j] = null;
+          }
+        } catch(e) {
+          console.log('Error happened when cleaning iframes.'); 
+        }
+      }
+    }
+    TGrabber.cleanIframeCache();
   },
 
+  cleanIframeCache: function() {
+    iframesLoaded = [];
+  },
+
+  // --------------------- Feeds methods ------------------------------
+
+  getProjects: function(xmlstring) {
+    var projects = [];
+    if(xmlstring != null) {
+      var nodes = xmlstring.getElementsByTagName('entry');
+      for(var i=0; i<nodes.length; i++) {
+        var node = nodes[i];
+        var project = {};
+        project["title"] = node.getElementsByTagName('title')[0];
+        project["link"] = node.getElementsByTagName('link')[0];
+        project["id"] = node.getElementsByTagName('id')[0];
+        project["updated"] = node.getElementsByTagName('updated')[0];
+        project["content"] = node.getElementsByTagName('content')[0];
+        projects[projects.length] = project;
+      }
+    }
+    if(configProjects) configProjects = projects;
+  },
+ 
   // --------------------- Worker methods -----------------------------
+
+  grabSubProjects: function(iframe) {
+    var subProjects = [];
+    var content = iframe.contentWindow.document.getElementById('content');
+    var projects = content.getElementsByTagName('LI');
+    for(var i=0;i<projects.length;i++) {
+      if(projects[i].innerHTML.match("Subprojects")) {
+        // Here are the subprojects!
+        var sp = projects[i].getElementsByTagName('A');
+        for(var s=0;s<sp.length;s++) {
+          var subProject = {};
+          subProject.title = sp[s].innerHTML;
+          var aux = sp[s].href.split('/');
+          subProject.id = aux[aux.length - 1];
+          subProjects[subProjects.length] = subProject;
+          TGrabber.getVersions('projects/' + subProject.id + '/');
+        }
+      }  
+    }
+    sortSubProjects = subProjects;
+  },
+
+  grabVersions: function(iframe) {
+    var versions = {};
+    var content = iframe.contentWindow.document.getElementById('roadmap');
+    if(content) {
+      var titles = content.childNodes;
+      for(var i=0; i<titles.length; i++){
+        if(titles[i].tagName == 'H3') {
+          var version = {};
+          version['name'] = titles[i].childNodes[1].innerHTML;
+          version['code'] = titles[i].childNodes[1].innerHTML.split(' ')[0];
+          // We need to split the project name too
+          if(!version['code'].match(/[0-9].([0-9](.[0-9]))/g)) {
+            version['code'] = titles[i].childNodes[1].innerHTML.split(' ')[2];
+          }
+          version['link'] = titles[i].childNodes[1].href;
+          var aux = titles[i].childNodes[1].href.split('/');
+          version['id'] = parseInt(aux[aux.length - 1]);
+          filterCollection.addFilter([version['id']], 'versionId', version['name'], version['link']);
+        }  
+      }
+    }
+  },
 
   grabFilters: function(iframe) {
     var filters = [];
@@ -54,7 +155,7 @@ var TGrabber = {
   },
 
   waitFilters: function() {
-    if(filtersList.length == 0) {
+    if(filtersList.length == 0 || filterCollection.length == 0) {
       setTimeout('TGrabber.waitFilters()',1000);
     } else {
       JInterface.start();
@@ -68,8 +169,9 @@ var TGrabber = {
     var trackers    = c.getElementById(TGrabber.issueTrackerId).getElementsByTagName('option');
     var statuses    = c.getElementById(TGrabber.issueStatusId).getElementsByTagName('option');
     var priorities  = c.getElementById(TGrabber.issuePriorityId).getElementsByTagName('option');
-    var categories  = c.getElementById(TGrabber.issueCategoryId).getElementsByTagName('option');
+    var categories  = c.getElementById(TGrabber.issueCategoryId) ? c.getElementById(TGrabber.issueCategoryId).getElementsByTagName('option') : [];
     var versions    = c.getElementById(TGrabber.issueTargetVersion).getElementsByTagName('option');
+    var assignee    = c.getElementById(TGrabber.issueAssignedTo).getElementsByTagName('option');
   
     for(var i=0;i<trackers.length;i++) {
       TTracker.list[i] = [trackers[i].innerHTML, trackers[i].value];  
@@ -89,6 +191,14 @@ var TGrabber = {
 
     for(var i=0;i<priorities.length;i++) {
       TPriority.list[i] = [priorities[i].innerHTML, priorities[i].value];  
+    }
+
+    for(var i = TPriority.list.length - 1;i>=0;i--) {
+      filterCollection.addFilter([TPriority.list[i][1]], 'priorityId', TPriority.list[i][0], TPriority.list[i][0]);
+    }
+
+    for(var i=0;i<assignee.length;i++) {
+      TAssignee.list[i] = [assignee[i].innerHTML, assignee[i].value];
     }
 
     $(container).appendChild(SortList.renderAddTask());
@@ -138,6 +248,19 @@ var TGrabber = {
     var done_ratio      = c.getElementById(TGrabber.issueDoneRatio) ? c.getElementById(TGrabber.issueDoneRatio).value : null;
     var dificulty       = c.getElementById(TGrabber.issueDificulty) ? c.getElementById(TGrabber.issueDificulty).value : null;
 
+    var dependencies    = c.getElementById(TGrabber.issueRelations).getElementsByTagName('tr') ? c.getElementById(TGrabber.issueRelations).getElementsByTagName('tr')  : [];
+
+    if(dependencies) {
+      var newDependencies = [];
+      for(var i=0;i<dependencies.length;i++) {
+        newDependencies[i] = JHtml.tr();
+        newDependencies[i].innerHTML = dependencies[i].innerHTML;
+      }
+    }
+ 
+
+    var attachments     = c.getElementsByClassName ? c.getElementsByClassName('attachments') : null;
+
     $(container).innerHTML = '';
     $(container).appendChild(SortList.renderFullTask( {
         trackerId: tracker_id,
@@ -152,7 +275,9 @@ var TGrabber = {
         dueDate: due_date,
         hours: hours,
         doneRatio: done_ratio,
-        dificulty: dificulty
+        dificulty: dificulty,
+        attachments: attachments,
+        dependencies: newDependencies
       } ));
   },
 
@@ -173,18 +298,22 @@ var TGrabber = {
   issueDoneRatio: 'issue_done_ratio',
   issueDificulty: 'issue_custom_field_values_3',
   issueNotes: 'notes',
+  issueRelations: 'relations',
   
-  addTicketSetValues: function(iframe, status_id, title, tracker, target_version, category, priority,  dificulty, hours, notes) {
+  addTicketSetValues: function(iframe, status_id, title, text, tracker, target_version, category, priority,  dificulty, assignee, hours, notes) {
+   
     iframe.contentWindow.document.getElementById(TGrabber.issueTrackerId).value = tracker;
     iframe.contentWindow.document.getElementById(TGrabber.issueStatusId).value = status_id;
-    iframe.contentWindow.document.getElementById(TGrabber.issueSubject).value = title;
+    iframe.contentWindow.document.getElementById(TGrabber.issueSubject).value = unescape(title);
+
     if(priority) iframe.contentWindow.document.getElementById(TGrabber.issuePriorityId).value = priority;
-    if(notes) iframe.contentWindow.document.getElementById(TGrabber.issueDescription).value = notes;
     if(target_version) iframe.contentWindow.document.getElementById(TGrabber.issueTargetVersion).value = target_version;
     if(hours) iframe.contentWindow.document.getElementById(TGrabber.issueEstimatedHours).value = hours;
     if(category) iframe.contentWindow.document.getElementById(TGrabber.issueCategoryId).value = category;
     if(dificulty) iframe.contentWindow.document.getElementById(TGrabber.issueDificulty).value = dificulty;
-    
+    if(text) iframe.contentWindow.document.getElementById(TGrabber.issueDescription).innerHTML = unescape(text);
+    if(assignee) iframe.contentWindow.document.getElementById(TGrabber.issueAssignedTo).value = assignee;
+  
     TGrabber.ticketSubmitUpdates(iframe, true);
   },
 
@@ -192,28 +321,49 @@ var TGrabber = {
     for(var i=0; i<arrayF.length;i++) {
       var field = arrayF[i][0];
       var value = arrayF[i][1];
+      if(field == 'notes') {
+        value = unescape(value);
+      }
       iframe.contentWindow.document.getElementById(field).value = value;
     }
     TGrabber.ticketSubmitUpdates(iframe, reload);
   },
 
   ticketSubmitUpdates: function(iframe, reload) {
-    if (reload) iframe.setAttribute('onload','SortList.reload()');
+    if (reload) iframe.setAttribute('onload','SortList.softReload()');
     else iframe.setAttribute('onload','');
     iframe.contentWindow.document.getElementById(TGrabber.issueForm).submit();
   },
   
   editTask: function(task, onload) {
     if(sortBaseUrl != '' && sortProject != '') {
-      var url = sortBaseUrl + 'issues/' + task;
+      var url = sortBaseUrl + 'issues/' + task + '/edit';
       TGrabber.setIframe(url, onload);
     } else {
       alert('No base URL setup!');
     }
   },
 
-  createTask: function(tracker, title, target_version, category, priority, dificulty, start_date, due_date, hours, notes) {
-    var onload = 'TGrabber.addTicketSetValues(this, 1,"' + title + '",' + tracker + ',' + target_version + ',' + category + ',' + priority + ',1' + ',' + hours + ',"' + notes + '")';
+  createTask: function(tracker, title, text, target_version, category, priority, dificulty, assignee, start_date, due_date, hours, notes) {
+    if(!tracker) tracker = 0;
+    if(!target_version) target_version = 0;
+    if(!category) category = 0;
+    if(!assignee) assignee = 0;
+    if(!hours) hours = 0;
+    notes = escape(notes);
+    var onload = 'TGrabber.addTicketSetValues(this, 1,"' + 
+                              title + '", "' + 
+                              text + '", ' +
+                              tracker + ',' + 
+                              target_version + ',' + 
+                              category + ',' + 
+                              priority + 
+                              ',1, ' +                   //dificulty
+                              assignee + ','+
+                              hours + 
+                              ',"' + 
+                              notes + 
+                              '")';
 
     if(sortBaseUrl != '' && sortProject != '') {
       var url = sortBaseUrl + sortProject + 'issues/new';
@@ -256,9 +406,26 @@ var TGrabber = {
 
   },
 
-
   getTasks: function(url, onload) {
     TGrabber.setIframe(url, onload);
+  },
+
+  getVersions: function(project) {
+    if(sortBaseUrl != '') {
+      var url = sortBaseUrl + project + 'roadmap';
+      TGrabber.setIframe(url, "TGrabber.grabVersions(this)");
+    } else {
+      alert("No base URL defined!");  
+    }
+  },
+  
+  getSubProjects: function() {
+    if(sortBaseUrl != '' && sortProject != '') {
+      var url = sortBaseUrl + sortProject;
+      TGrabber.setIframe(url, "TGrabber.grabSubProjects(this)");
+    } else {
+      alert("No base URL defined!");  
+    }
   },
 
   getFilters: function() {

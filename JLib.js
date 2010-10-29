@@ -57,27 +57,69 @@ var JTextile = {
   
     lines = r.split('\n');
     nr = '';
+    listDepth = 0;
+    oldDepth = 0;
+
     for (var i=0;i<lines.length;i++) {
-        line = lines[i].replace(/\s*$/,'');
-        changed = 0;
-        if (line.search(/^\s*bq\.\s+/) != -1) { 
-      line = line.replace(/^\s*bq\.\s+/,'\t<blockquote>')+'</blockquote>'; 
-      changed = 1; 
-    }
-    
-    // jeff adds h#.
-        if (line.search(/^\s*h[1|2|3|4|5|6]\.\s+/) != -1) { 
+      line = lines[i].replace(/\s*$/,'');
+      changed = 0;
+      if (line.search(/^\s*bq\.\s+/) != -1) { 
+        line = line.replace(/^\s*bq\.\s+/,'\t<blockquote>')+'</blockquote>'; 
+        changed = 1; 
+      }
+      
+      // jeff adds h#.
+      if (line.search(/^\s*h[1|2|3|4|5|6]\.\s+/) != -1) { 
         re = new RegExp('h([1|2|3|4|5|6])\.(.+)','g');
         line = line.replace(re,'<h$1>$2</h$1>');
-      changed = 1; 
-    }
-    
-    if (line.search(/^\s*\*\s+/) != -1) { line = line.replace(/^\s*\*\s+/,'\t<liu>') + '</liu>'; changed = 1; } 
-        // * for bullet list; make up an liu tag to be fixed later
-        if (line.search(/^\s*#\s+/) != -1) { line = line.replace(/^\s*#\s+/,'\t<lio>') + '</lio>'; changed = 1; } 
-          // # for numeric list; make up an lio tag to be fixed later
-        if (!changed && (line.replace(/\s/g,'').length > 0)) line = '<p>'+line+'</p>';
-        lines[i] = line + '\n';
+        changed = 1; 
+      }
+      
+      var addList = '';
+      if (line.search(/^\s*\*\s+/) != -1) { 
+        if(!listDepth)
+          addList = '<ul>';
+        if(listDepth == 2) 
+          addList = '</ul>';
+        if(listDepth == 3)
+          addList = '</ul></ul>';
+        line = line.replace(/^\s*\*\s+/,'\t' + addList + '<liu>') + '</liu>'; 
+        changed = 2; 
+        listDepth = 1;
+      } 
+      if (line.search(/^\s*\*\*\s+/) != -1) { 
+        if(listDepth == 1) 
+          addList = '<ul>';
+        if(listDepth == 3)
+          addList = '</ul>';
+        line = line.replace(/^\s*\*\*\s+/,'\t' + addList + '<liu>') + '</liu>'; 
+        changed = 2; 
+        listDepth = 2;
+      } 
+      if (line.search(/^\s*\*\*\*\s+/) != -1) { 
+        if(listDepth == 2)
+          addList = '<ul>';
+        line = line.replace(/^\s*\*\*\*\s+/,'\t' + addList + '<liu>') + '</liu>'; 
+        changed = 2; 
+        listDepth = 3;
+      } 
+      
+      // * for bullet list; make up an liu tag to be fixed later
+      if (line.search(/^\s*#\s+/) != -1) { line = line.replace(/^\s*#\s+/,'\t<lio>') + '</lio>'; changed = 1; } 
+      // # for numeric list; make up an lio tag to be fixed later
+
+      if(changed != 2 && listDepth) {
+        var ul = '';
+        for(var z=0;z<listDepth;z++)
+          ul += '</ul>';
+        line = ul + line;
+        listDepth = 0;
+      }
+
+      if (!changed && (line.replace(/\s/g,'').length > 0)) { 
+        line = '<p>'+line+'</p>';
+      }
+      lines[i] = line + '\n';
     }
   
     // Second pass to do lists
@@ -85,10 +127,8 @@ var JTextile = {
     listtype = '';
     for (var i=0;i<lines.length;i++) {
         line = lines[i];
-        if (inlist && listtype == 'ul' && !line.match(/^\t<liu/)) { line = '</ul>\n' + line; inlist = 0; }
-        if (inlist && listtype == 'ol' && !line.match(/^\t<lio/)) { line = '</ol>\n' + line; inlist = 0; }
-        if (!inlist && line.match(/^\t<liu/)) { line = '<ul>' + line; inlist = 1; listtype = 'ul'; }
-        if (!inlist && line.match(/^\t<lio/)) { line = '<ol>' + line; inlist = 1; listtype = 'ol'; }
+        if (inlist && listtype == 'ol' && !line.match(/^\t<lio/)) { line = '</ol>\n' + line; inlist -= 1; }
+        if (!inlist && line.match(/^\t<lio/)) { line = '<ol>' + line; inlist += 1; listtype = 'ol'; }
         lines[i] = line;
     }
  
@@ -125,7 +165,15 @@ var JHtml = {
   h1: function() {
     return JHtml.createElement('H1');
   },
+   
+  h2: function() {
+    return JHtml.createElement('H2');
+  },
   
+  h3: function() {
+    return JHtml.createElement('H3');
+  },
+
   a: function() {
     return JHtml.createElement('A');
   },
@@ -169,6 +217,18 @@ var JHtml = {
     t.setAttribute('id',id);
     t.setAttribute('name',name);
     t.setAttribute('value',value);
+    return t;
+  },
+  
+  textarea: function(id, width, value) {
+    var t = JHtml.createElement('TEXTAREA')
+    t.setAttribute('type','textbox');
+    t.setAttribute('style','border: 1px solid #c0c0c0; width: ' + width + '; height: 60px;');
+    t.setAttribute('onfocus','this.style.border = "1px solid #606060";');
+    t.setAttribute('onblur','this.style.border = "1px solid #c0c0c0";');
+    t.setAttribute('id',id);
+    t.setAttribute('name',name);
+    t.innerHTML = value;
     return t;
   },
 
@@ -243,7 +303,7 @@ var JHtml = {
     b.setAttribute('style',
              'font-size: 11px; color: ' + fcolor + '; background-color: ' + bcolor + '; ' + 
              'border: 1px solid ' + border + '; padding: 2px 5px 2px 5px; ' + 
-             '-moz-border-radius: 5px 5px 5px 5px; ' + 
+             '-moz-border-radius: 5px 5px 5px 5px; cursor: pointer;' + 
              '-webkit-border-radius: 5px 5px 5px 5px; ' + 
              '-moz-box-shadow: 0px 10px 10px ' + border + ' inset; margin-left: 3px;' + 
              '-webkit-box-shadow: 0px 10px 10px ' + border + ' inset;');
@@ -257,13 +317,14 @@ var JHtml = {
   },
 
   propertyLabel: function(label) {
-    var p = JHtml.div('','float:left; width: 30%;text-align: right; padding-right: 4px; font-weight: bold;');
+    var p = JHtml.div('','float:left; width: 20%;text-align: right; padding-right: 4px; font-weight: bold;');
     p.innerHTML = label;
     return p;
   },
 
-  propertyContent: function(content) {
-    var p = JHtml.div('','float: right; width: 65%;');
+  propertyContent: function(params) {
+    var content = params;
+    var p = JHtml.div('','float: right; width: 75%;');
     p.innerHTML = content;
     return p;
   },
@@ -277,5 +338,4 @@ var JHtml = {
     return i;
   },
 };
-
 

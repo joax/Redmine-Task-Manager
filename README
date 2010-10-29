@@ -40,13 +40,12 @@ The way to make this work is slightly simple:
 
 * And now create a wiki page in your project with the following lines:
 
-  <html>
-
-  <script src="/javascripts/joax.js" type="text/javascript"></script>
+  <script src="/javascripts/JInterface.js" type="text/javascript"></script>
+  <script src="/javascripts/JLib.js" type="text/javascript"></script>
+  <script src="/javascripts/TGrabber.js" type="text/javascript"></script>
+  <script src="/javascripts/JList.js" type="text/javascript"></script>
 
   <script>JInterface.init(600)</script>
-
-  </html>
 
 
 Notes:

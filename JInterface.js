@@ -1,3 +1,92 @@
+function Favicon() {
+  
+  this.isChrome = 0;
+  this.iframe = null;
+
+  this.init = function() {
+    document.head = document.head || document.getElementsByTagName('head')[0];
+    // Browser sniffing :`(
+    if (/Chrome/.test(navigator.userAgent)) {
+      this.isChrome = 1;
+      this.iframe = document.createElement('iframe');
+      this.iframe.src = 'about:blank';
+      this.iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    };
+  };
+
+  this.changeFavicon = function(src) {
+    var link = document.createElement('link'),
+    oldLink = document.getElementById('dynamic-favicon');
+    link.id = 'dynamic-favicon';
+    link.rel = 'shortcut icon';
+    link.href = src;
+    if (oldLink) {
+      document.head.removeChild(oldLink);
+    };
+    document.head.appendChild(link);
+    if (this.isChrome) {
+      this.iframe.src += '';
+    };
+  };
+};
+
+function FilterCollection() {
+  
+  this.filters = {};
+  this.links = {};
+
+  this.addFilter = function(ids, field, title, link) {
+
+    if(!this.links[link]) {
+      this.filters[title] = {};
+      this.filters[title].ids = ids;
+      this.filters[title].field = field;
+      this.links[link] = title;
+    } else {
+      // Merge the ids with the current one
+      for(var i=0;i<ids.length;i++) {
+        var found = false;
+        for(var j=0;j<this.filters[this.links[link]].ids.length;j++) {
+          if(this.filters[this.links[link]].ids[j] == ids[i])
+            found = true;
+        }
+        if(!found)
+          this.filters[this.links[link]].ids[this.filters[this.links[link]].ids.length] = ids[i];
+      }
+    }
+  };
+
+  this.getFilters = function(field) {
+    var filtered = {};
+    if(field) {
+      count = 0;
+      for(var i in this.filters) {
+        if(this.filters[i].field == field) {
+          filtered[i] = this.filters[i];
+          count++;
+        }
+      }
+      filtered.field = field;
+      filtered.length = function() { return count; }
+    } else {
+      filtered = this.filters;
+      filtered.length = this.length;
+      filtered.field = '';
+    }
+    return filtered;
+  };
+
+  this.length = function() {
+    var length = 0;
+    for(var i in this.filters) {
+      length ++;
+    }
+    return length;
+  }
+};
+
+
 function ListCollection() {
 
   this.lists = [];
@@ -46,7 +135,7 @@ function ListCollection() {
   this.serializable = function() {
     var arrayT = [];
     for(var i=0;i<this.length();i++) {
-      arrayT[arrayT.length] = [this.lists[i].url, this.lists[i].color, this.lists[i].title];
+      arrayT[arrayT.length] = [this.lists[i].url, this.lists[i].color, this.lists[i].title, this.lists[i].isFiltered, this.lists[i].fieldFiltered];
     }
     return arrayT;
   };
@@ -54,7 +143,7 @@ function ListCollection() {
   this.parse = function(array) {
     this.lists = [];
     for(var i=0;i<array.length;i++) {
-      this.addList(new List([array[i][0], array[i][1], array[i][2]])); 
+      this.addList(new List([array[i][0], array[i][1], array[i][2], array[i][3], array[i][4]])); 
     }
   };
 }
@@ -64,12 +153,14 @@ var filterCollection = new FilterCollection();
 
 var sortProject = 'projects/data-products/';
 var sortBaseUrl = 'https://wiki.borderstylo.com/';
+
 var sortMe = 0;
 
-var configHeight = 600;
+var configHeight = window.innerHeight - 200;
 var configNumberLists = 3;
 
 var filtersList = [];
+var sortSubProjects = [];
 
 var TPriority = {
   code: function(value) {
@@ -84,6 +175,27 @@ var TPriority = {
     for(var i=0;i<TPriority.list.length;i++) {
       if(value == TPriority.list[i][1]) {
         return TPriority.list[i][0];  
+      }  
+    }  
+  },
+
+  list: [],
+
+};
+
+var TAssignee = {
+  code: function(value) {
+    for(var i=0;i<TAssignee.list.length;i++) {
+      if(value == TAssignee.list[i][0]) {
+        return TAssignee.list[i][1];  
+      }  
+    }  
+  },
+
+  decode: function(value) {
+    for(var i=0;i<TAssignee.list.length;i++) {
+      if(value == TAssignee.list[i][1]) {
+        return TAssignee.list[i][0];  
       }  
     }  
   },
@@ -158,6 +270,11 @@ var TTracker = {
     ['Support',3],
     ['Task',4]
   ],
+
+  BUG: 1,
+  FEATURE: 2,
+  SUPPORT: 3,
+  TASK: 4
 };
 
 var TStatus = {
@@ -184,25 +301,27 @@ var TStatus = {
     ['New',1],
     ['In Progress', 2],
     ['Fixed', 3],
-    ['Feedback', 4],
+    ['QA Feedback', 4],
     ['Closed', 5],
     ['Rejected', 6],
     ['Deferred', 7],
     ['Pushed', 8],
     ['Accepted', 9],
     ['Failing', 10],
+    ['Engineering Feedback', 11],
     ],
 
   NEW: 1,
   IN_PROGRESS: 2,
   FIXED: 3,
-  FEEDBACK: 4,
+  QA_FEEDBACK: 4,
   CLOSED: 5,
   REJECTED: 6,
   DEFERRED: 7,
   PUSHED: 8,
   ACCEPTED: 9,
   FAILING: 10,
+  ENGINEERING_FEEDBACK: 11,
 };
 
 var Colors = {
@@ -217,6 +336,8 @@ var Colors = {
 var iframesLoaded = [];
 
 var JInterface = {
+
+  favIcon: "https://www.writeonglass.com/favicon.ico",
 
   serializePreferences: function(arrayT) {
     var str = arrayT[0].join("^#^");
@@ -240,11 +361,11 @@ var JInterface = {
   },
 
   storePreferences: function() {
-    SortList.createCookie('RedmineTasker', JInterface.serializePreferences(listCollection.serializable()), 10);
+    SortList.createCookie('RedmineTasker-' + sortProject, JInterface.serializePreferences(listCollection.serializable()), 10);
   },
 
   retrievePreferences: function() {
-    var arrayP = SortList.readCookie('RedmineTasker');
+    var arrayP = SortList.readCookie('RedmineTasker-' + sortProject);
     if(arrayP && arrayP.length > 0) {
       listCollection.lists = [];
       listCollection.parse(JInterface.unserializePreferences(arrayP));
@@ -281,6 +402,22 @@ var JInterface = {
     return m;
   },
 
+  menuRefresh: function(title) {
+    var refresh = JHtml.div('',
+                        'float: right; width: 90px; text-align: left; padding: 4px; ' +
+                        'margin-top: 4px; border: 1px solid #c0c0c0; padding-left: 8px;' +
+                        'background-color: #ffffff; -moz-border-radius: 5px; -webkit-border-radius: 5px;');
+    refresh.setAttribute('onmouseover','this.background = "#f0f0f0";');
+    refresh.setAttribute('onmouseout','this.background = "#ffffff";');
+    var linkToRefresh = JHtml.a();
+    linkToRefresh.setAttribute('style','cursor: pointer; background-image: url(/images/reload.png); ' +
+                        'background-repeat: no-repeat; padding-left: 20px;');
+    linkToRefresh.setAttribute('onclick','JInterface.calculateOptions();');
+    linkToRefresh.innerHTML = title;
+    refresh.appendChild(linkToRefresh);
+    return refresh;
+  },
+  
   menuTitle: function(title, obj) {
     var sectionTitle = JHtml.div('',
                             'width: 99%; font-size: 15px; font-weight: bold; ' + 
@@ -316,25 +453,48 @@ var JInterface = {
 
   menu: function() {
     var menu      = JHtml.div('menu_jhtml',
-                            'width: 1000px; margin: 0px auto; padding: 10px;');
+                            'width: 90%; margin: 0px auto; padding: 10px;');
     
     var menuList  = JInterface.menuCanvas('menu_filters','380px', 500);
     var menuAdd   = JInterface.menuCanvas('menu_add','440px', 40);
-    var menuSpeed = JInterface.menuCanvas('menu_canvas','200px', 800);
+    var menuTools = JInterface.menuCanvas('menu_canvas','200px', 900);
     
     var menuFilterList  = JInterface.menuContent(menuList.id, '80%');
     var menuAddList     = JInterface.menuContent(menuAdd.id, '95%');
-    var menuSpeedList   = JInterface.menuContent(menuSpeed.id, '95%');
+    var menuToolsList   = JInterface.menuContent(menuTools.id, '95%');
 
     menuAdd = JInterface.menuTitle('Add Task',menuAdd);
     menuList = JInterface.menuTitle('Tasks Filters',menuList);
-    menuSpeed = JInterface.menuTitle('Speed',menuSpeed);
-  
-    for(var j=0;j<listCollection.length();j++) {
-      var speedC  = JHtml.div('',
-                          'float: left; margin: 2px; height: 20px; width: 20px;' + 
-                          'font-size: 18px; font-weight: bold');
-      menuSpeedList.appendChild(speedC);
+    menuTools = JInterface.menuTitle('Tools',menuTools);
+ 
+    if(filterCollection.length) {
+      var toolsButtons = JHtml.div();
+      toolsButtons.setAttribute('style','width: 90%; padding: 3px; text-align: center;');
+      
+      var refreshDiv      = JHtml.div('','width: 150px; padding: 4px; border: 1px solid #c0c0c0; margin: 10px;');
+      refreshLabel        = JHtml.label('refresh-rate');
+      refreshLabel.innerHTML = 'Refresh Rate:';
+      var refreshRate     = JHtml.select('refresh-rate','JInterface.refresh()');
+      refreshRate.appendChild(JHtml.option(-1,'Not refresh'));
+      refreshRate.appendChild(JHtml.option((10*60*1000),'10 Minutes'));
+      refreshRate.appendChild(JHtml.option((5*60*1000),'5 Minutes'));
+      refreshRate.appendChild(JHtml.option((2*60*1000),'2 Minutes'));
+      refreshRate.appendChild(JHtml.option((1*60*1000),'1 Minutes'));
+      refreshDiv.appendChild(refreshLabel);
+      refreshDiv.appendChild(refreshRate);
+     
+
+      var toolDiv      = JHtml.div('','width: 150px; padding: 4px; border: 1px solid #c0c0c0; margin: 10px;');
+      var toolPriorities  = JHtml.button('', 'Apply Priority Filter','JInterface.applyFilters(filterCollection.getFilters("priorityId"))');
+      var toolVersions    = JHtml.button('', 'Apply Versions Filter','JInterface.applyFilters(filterCollection.getFilters("versionId"))');
+      var toolNoVersions  = JHtml.button('', 'No Filters','JInterface.applyFilters(null)');
+      toolDiv.appendChild(toolPriorities);
+      toolDiv.appendChild(toolVersions);
+      toolDiv.appendChild(toolNoVersions);
+
+      toolsButtons.appendChild(refreshDiv);
+      toolsButtons.appendChild(toolDiv);
+      menuToolsList.appendChild(toolsButtons);
     }
 
     for(var i=0;i<filtersList.length;i++) {
@@ -352,7 +512,7 @@ var JInterface = {
 
     menuList.appendChild(menuFilterList);
     menuAdd.appendChild(menuAddList);
-    menuSpeed.appendChild(menuSpeedList);
+    menuTools.appendChild(menuToolsList);
 
     if($('menu_jhtml')) {
        $('menu_jhtml').parentNode.removeChild($('menu_jhtml'));
@@ -360,15 +520,16 @@ var JInterface = {
 
     var executeButton   = JHtml.button('','Save Changes','JInterface.calculateOptions()');
     var addTicketButton = JHtml.button('', 'Add Task', 'JInterface.addTask()');
-    var speedButton     = JHtml.span('','');
+    var toolsButton     = JHtml.span('','');
 
     menuAdd     = JInterface.menuBottom(addTicketButton, menuAdd);
     menuList    = JInterface.menuBottom(executeButton, menuList);
-    menuSpeed   = JInterface.menuBottom(speedButton, menuSpeed);
+    menuTools   = JInterface.menuBottom(toolsButton, menuTools);
 
     menu.appendChild(menuList);
     menu.appendChild(menuAdd);
-//    menu.appendChild(menuSpeed);
+    menu.appendChild(menuTools);
+    menu.appendChild(JInterface.menuRefresh('Refresh'));
     
     if($('content').childNodes.length == 0)
       $('content').appendChild(menu);
@@ -376,13 +537,29 @@ var JInterface = {
       $('content').insertBefore(menu, $('content').childNodes[0]);
   },
 
+  applyFilters: function(filter) {
+    if(filter != null) {
+       for(var i=0; i<listCollection.length();i++) {
+        listCollection.lists[i].groupBy(filter);
+      }    
+    } else {
+      for(var i=0; i<listCollection.length();i++) {
+        listCollection.lists[i].isFiltered = 0;
+        listCollection.lists[i].load();
+      }
+    }
+    JInterface.storePreferences();
+  },
+
   addTask: function() {
     var tracker = document.getElementById('task-add-tracker').value;
     var version_id = document.getElementById('task-add-version').value;
     var category_id = document.getElementById('task-add-category').value;
-    var title = document.getElementById('task-add-name').value;
- 
-    TGrabber.createTask(tracker, title, version_id, category_id, 1, 1, '', '', 4, '');
+    var title = escape(document.getElementById('task-add-name').value);
+    var text = escape(document.getElementById('task-add-text').value);
+    var assignee = document.getElementById('task-add-assignee').value;
+
+    TGrabber.createTask(tracker, title, text, version_id, category_id, 1, 1, assignee, '', '', 4, '');
 
     $('menu_add_list_layer').innerHTML = '';
     $('menu_add_list_layer').appendChild(SortList.renderAddTask());
@@ -407,10 +584,16 @@ var JInterface = {
   },
 
   init: function(height) {
+    // Set the favicon!!
+    //favicon = new Favicon();
+    //favicon.changeFavicon(this.favIcon);
+    var screenHeight = window.innerHeight - 200;
     JInterface.clean();
     JInterface.getURL();
     JInterface.retrievePreferences();
-    configHeight = height; 
+    configHeight = screenHeight; 
+    TGrabber.getVersions(sortProject);
+    TGrabber.getSubProjects();
     TGrabber.getFilters();
   },
 
@@ -436,10 +619,11 @@ var JInterface = {
       }
     } else {
       for(var i=0;i<listCollection.length();i++){
-        filtersDisplay[filtersDisplay.length] = [listCollection.lists[i].url, listCollection.lists[i].color, listCollection.lists[i].title];
+        filtersDisplay[filtersDisplay.length] = new List([listCollection.lists[i].url, listCollection.lists[i].color, listCollection.lists[i].title, listCollection.lists[i].isFiltered, listCollection.lists[i].fieldFiltered]);
       }
     }
     SortList.init(filtersDisplay);
+    JInterface.refresh(true);
   },
 
   detectMe: function() {
@@ -472,7 +656,23 @@ var JInterface = {
         $('main').getElementsByTagName('DIV')[i].style.display = 'none';
     }
   },
- 
+
+  refresh: function(init) {
+    if(!init) {
+      for(var i=0;i<listCollection.lists.length;i++)
+        listCollection.lists[i].softLoad();
+      // And we do some garbage collection
+
+      setTimeout("TGrabber.garbageCollect()",2000);
+    }
+    // TODO: 
+    // - Refresh options in 'Tools'
+    // - Timer options in 'Tools'
+    var rate = $('refresh-rate').value
+    if(rate > 0) {
+      setTimeout("JInterface.refresh(false)",rate);
+    }
+  },
 }
 
 var SortList = {
@@ -497,8 +697,7 @@ var SortList = {
 
   // --------------- Lists Creation --------------------------------
 
-  setupList: function(url, color, title) {
-    var list = new List([url, color, title]);
+  setupList: function(list) {
     var container = list.container.html;
     $('listsContainer').appendChild(container);
     list.load();
@@ -508,7 +707,7 @@ var SortList = {
   init: function(arrayLists) {
     SortList.renderListsContainer();
     for(var i=0;i < arrayLists.length;i++) {
-      SortList.setupList(arrayLists[i][0], arrayLists[i][1], arrayLists[i][2]);
+      SortList.setupList(arrayLists[i]);
     }
     SortList.reorderLists();
   },
@@ -568,7 +767,7 @@ var SortList = {
   taskTypeName: function(title) { return title.split(' ').join('-'); },
 
   reorderLists: function() {
-    var width = 95 / listCollection.length();
+    var width = 97 / listCollection.length();
     for(var i=0; i<listCollection.length();i++) { 
       $(listCollection.lists[i].containerName).parentNode.style.width = width + '%'; 
     }
@@ -577,19 +776,24 @@ var SortList = {
   },
 
   renderListsContainer: function() {
-     var listsContainer = JHtml.div('listsContainer', 'width: 99%; margin-top: 20px; display: inline-block');
-     $('content').appendChild(listsContainer); 
+    if(!$('listsContainer')) {
+      var listsContainer = JHtml.div('listsContainer', 'width: 99%; margin-top: 10px; display: inline-block');
+      $('content').appendChild(listsContainer); 
+    }
   },
-
  
   // --------------- Tasks Creation --------------------------------
-  
   
   renderTextBox: function(name, width) {
     var tb = JHtml.textbox(name, width + '%','');
     return tb;
   },
   
+  renderTextArea: function(name, width) {
+    var ta = JHtml.textarea(name, width + '%','');
+    return ta;
+  },
+ 
   renderDropDown: function(name, content) {
     var dd = JHtml.select(name, '');
     for(var i=0;i<content.length;i++) {
@@ -600,11 +804,14 @@ var SortList = {
   },
 
   renderAddTask: function() {
-    var add = JHtml.div('','width: 80%; margin: 0px auto; text-align: center;  margin-top: 20px; padding: 10px;');
+    var add = JHtml.div('','width: 90%; margin: 0px auto; text-align: center;  margin-top: 20px; padding: 10px;');
     var addSpacer = JHtml.space();   
     var addNameBoxLabel = JHtml.label('task-add-subject');
     addNameBoxLabel.innerHTML = 'Subject: ';
     var addNameBox = SortList.renderTextBox('task-add-name','80%');
+    var addTextBoxLabel = JHtml.label('task-add-text');
+    addTextBoxLabel.innerHTML = 'Description: ';
+    var addTextBox = SortList.renderTextArea('task-add-text','100%');
     var addTrackerLabel = JHtml.label('task-tracker');
     addTrackerLabel.innerHTML = 'Tracker: ';
     var addTracker = SortList.renderDropDown('task-add-tracker',TTracker.list);
@@ -614,7 +821,10 @@ var SortList = {
     var addCategoryLabel = JHtml.label('task-category');
     addCategoryLabel.innerHTML = 'Category: ';
     var addCategory = SortList.renderDropDown('task-add-category',TCategory.list);
-    
+    var addAssigneeLabel = JHtml.label('task-assigned-to');
+    addAssigneeLabel.innerHTML = 'Assign to: ';
+    var addAssignee = SortList.renderDropDown('task-add-assignee',TAssignee.list);
+ 
     add.appendChild(addTrackerLabel);
     add.appendChild(addTracker);
     add.appendChild(addSpacer);
@@ -623,6 +833,18 @@ var SortList = {
 
     add.appendChild(addNameBoxLabel);
     add.appendChild(addNameBox);
+    add.appendChild(addSpacer); 
+    
+    var addSpacer = JHtml.space();
+
+    add.appendChild(addAssigneeLabel);
+    add.appendChild(addAssignee);
+    add.appendChild(addSpacer); 
+   
+    var addSpacer = JHtml.space();   
+
+    add.appendChild(addTextBoxLabel);
+    add.appendChild(addTextBox);
     add.appendChild(addSpacer); 
 
     var addSpacer = JHtml.space();
@@ -672,27 +894,81 @@ var SortList = {
       listCollection.lists[i].load();
     }
   },
+  
+  softReload: function() {
+    for(var i=0; i<listCollection.length(); i++) {
+      listCollection.lists[i].softLoad();
+    }
+  },
 
   doMagic: function() { 
     for(var i = 0;i<listCollection.length(); i++) {
+
+      list        = listCollection.lists[i];
       container   = listCollection.lists[i].containerName;
       colorf      = listCollection.lists[i].color;
       task_type   = listCollection.lists[i].taskType;
-      Sortable.create(container, { 
-        elements: $$('#' + container + ' div'), 
-        containment: SortList.getListNames(),
-      });
-      // And now we do Sortable!
+      
       var tasks   = $(container).childNodes;
-      for(var j=0; j<tasks.length; j++) { new Draggable( tasks[j].id ,{revert: true});  }
+      
+      Sortable.create(container, { 
+        tag: 'div', 
+        only: 'joax-redmine-task',
+        containment: SortList.getListNames(),
+        dropOnEmpty: true,
+      });
+      
+      if(tasks.length > 0 && $(tasks[0]).id != 'no-elements') { 
+        for(var j=0; j<tasks.length; j++) { 
+          new Draggable( 
+            tasks[j].id ,
+            {
+              revert: true, 
+              onEnd: function(d) {
+                list.reordered(d.element.parentNode, list.fieldFiltered);
+              }
+            }
+          );  
+        }
+      }
     }
   },
   
   // --------------------- Individual Task ------------------------------
 
   renderFullTask: function( oArg ) {
+
     var d = JHtml.div('', 
-                    'width: 80%; float: left; padding: 5px; margin: 0 auto;');
+                    'width: 95%; float: left; padding: 5px; margin: 0 auto;');
+
+    if( oArg.dependencies.length ) {
+      var l = JHtml.div('','width: 99%; margin: 0px; display: inline-block; margin-bottom: 10px;');
+      var p = JHtml.propertyLabel('Dependencies');
+      var t = JHtml.table();
+      t.setAttribute('style','width: 100%');
+      for(var i=0;i<oArg.dependencies.length;i++) {
+        var when = oArg.dependencies[i].getElementsByTagName('td')[oArg.dependencies[i].getElementsByTagName('td').length - 1];
+        oArg.dependencies[i].removeChild(when);
+        var when = oArg.dependencies[i].getElementsByTagName('td')[oArg.dependencies[i].getElementsByTagName('td').length - 1];
+        oArg.dependencies[i].removeChild(when);
+        var when = oArg.dependencies[i].getElementsByTagName('td')[oArg.dependencies[i].getElementsByTagName('td').length - 1];
+        oArg.dependencies[i].removeChild(when);
+        var text = oArg.dependencies[i].getElementsByTagName('td')[0].innerHTML;
+        text = text.replace('related to ','');
+        text = text.replace('Feature','<img src="/images/package.png" />');
+        text = text.replace('Task','');
+        oArg.dependencies[i].getElementsByTagName('td')[0].innerHTML = text;
+
+        t.appendChild(oArg.dependencies[i]);
+      }
+      var aux = JHtml.div();
+      aux.appendChild(t);
+      var s = JHtml.propertyContent(aux.innerHTML);
+      l.appendChild(p);
+      l.appendChild(s);
+      d.appendChild(l);
+    }
+    
     var l = JHtml.div('','width: 99%; margin: 0px; display: inline-block; margin-bottom: 10px;');
     var p = JHtml.propertyLabel('Description');
     var s = JHtml.propertyContent(oArg.description == '' ? 'No description.' : JTextile.textile2html(oArg.description));
@@ -700,6 +976,15 @@ var SortList = {
     l.appendChild(s);
     d.appendChild(l);
    
+    if ( oArg.attachments.length ) {
+      var l = JHtml.div('','width: 99%; margin: 0px; display: inline-block; margin-bottom: 10px;');
+      var p = JHtml.propertyLabel('Attachments');
+      var s = JHtml.propertyContent( oArg.attachments[0].innerHTML);
+      l.appendChild(p);
+      l.appendChild(s);
+      d.appendChild(l);
+    }
+
     var l = JHtml.div('','width: 99%; margin: 0px; display: inline-block; margin-bottom: 10px;');
     var p = JHtml.propertyLabel('Target Version');
     var s = JHtml.propertyContent(TVersion.decode(oArg.targetVersion));
@@ -736,37 +1021,30 @@ var SortList = {
    *  container = div where to set the tasks
    */
   fill: function(obj, color, task_type, container) {
+    var list = listCollection.getByContainer(container);
     if(obj.contentWindow.document.getElementsByTagName('table')[4]) {
-      var list = listCollection.getByContainer(container);
       if(list) {
         $(list.containerName).innerHTML = '';
         var iterator = obj.contentWindow.document.getElementsByTagName('table')[4].getElementsByTagName('tr');
-        for(var i=1;i<iterator.length && i < 100;i++) { 
+        for(var i=1;i<iterator.length && i < 1000;i++) { 
           var t = new Task();
           t.type = task_type;
           t.color = color;
           t.parse(iterator[i]);
-          $(list.containerName).appendChild(t.html);
           list.tasks[list.tasks.length] = t;
         }
-        // Lets add the last element
-        var end = JHtml.div();
-        end.setAttribute('style','width: 100%; height: 2px; border-top: 1px solid #c0c0c0; ' +
-                            ' border-bottom: 1px solid #c0c0c0; font-size: 2px;' +
-                            '-moz-box-shadow: 0px 5px 5px 0px #c0c0c0;' +
-                            '-webkit-box-shadow: 0px 3px 3px 0px #c0c0c0;');
-        end.innerHTML = '&nbsp;';
-        $(list.containerName).appendChild(end);
+        if(parseInt(list.isFiltered) == 2) {
+          list.groupBy(filterCollection.getFilters(list.fieldFiltered));
+        }
       }
-    } else {
-      var noElementsDiv = JHtml.div('',
-                          'padding: 20px; text-align: center; width: 100%;');
-      noElementsDiv.innerHTML = 'There is no elements';
-      $(container).innerHTML = '';
-      $(container).appendChild(noElementsDiv); 
+    }
+    if (list) {
+      list.reloadSubTitle();
+      list.render();
     }
     TGrabber.garbageCollectOne(obj);
     SortList.doMagic();
+    $(container + '-loading').fade();
   }
 };
 
