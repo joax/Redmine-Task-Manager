@@ -236,6 +236,7 @@ var TGrabber = {
     var c               = iframe.contentWindow.document;
     var tracker_id      = c.getElementById(TGrabber.issueTrackerId) ? c.getElementById(TGrabber.issueTrackerId).value : null;
     var status_id       = c.getElementById(TGrabber.issueStatusId) ? c.getElementById(TGrabber.issueStatusId).value : null;
+    var parent_id       = c.getElementById(TGrabber.issueParentId) ? c.getElementById(TGrabber.issueParentId).value : null;
     var subject         = c.getElementById(TGrabber.issueSubject) ? c.getElementById(TGrabber.issueSubject).value : null;
     var description     = c.getElementById(TGrabber.issueDescription) ? c.getElementById(TGrabber.issueDescription).value : null;
     var priority_id     = c.getElementById(TGrabber.issuePriorityId) ? c.getElementById(TGrabber.issuePriorityId).value : null;
@@ -265,6 +266,7 @@ var TGrabber = {
     $(container).appendChild(SortList.renderFullTask( {
         trackerId: tracker_id,
         statusId: status_id,
+        parentId: parent_id,
         subject: subject,
         description: description,
         priorityId: priority_id,
@@ -286,6 +288,7 @@ var TGrabber = {
   issueForm: 'issue-form',
   issueTrackerId: 'issue_tracker_id',
   issueSubject: 'issue_subject',
+  issueParentId: 'issue_parent_issue_id',
   issueDescription: 'issue_description',
   issueStatusId: 'issue_status_id',
   issuePriorityId: 'issue_priority_id',
@@ -300,13 +303,14 @@ var TGrabber = {
   issueNotes: 'notes',
   issueRelations: 'relations',
   
-  addTicketSetValues: function(iframe, status_id, title, text, tracker, target_version, category, priority,  dificulty, assignee, hours, notes) {
+  addTicketSetValues: function(iframe, status_id, parent_id, title, text, tracker, target_version, category, priority,  dificulty, assignee, hours, notes) {
    
     iframe.contentWindow.document.getElementById(TGrabber.issueTrackerId).value = tracker;
     iframe.contentWindow.document.getElementById(TGrabber.issueStatusId).value = status_id;
     iframe.contentWindow.document.getElementById(TGrabber.issueSubject).value = unescape(title);
 
     if(priority) iframe.contentWindow.document.getElementById(TGrabber.issuePriorityId).value = priority;
+    if(parent_id) iframe.contentWindow.document.getElementById(TGrabber.issueParentId).value = parent_id;
     if(target_version) iframe.contentWindow.document.getElementById(TGrabber.issueTargetVersion).value = target_version;
     if(hours) iframe.contentWindow.document.getElementById(TGrabber.issueEstimatedHours).value = hours;
     if(category) iframe.contentWindow.document.getElementById(TGrabber.issueCategoryId).value = category;
@@ -352,6 +356,7 @@ var TGrabber = {
     if(!hours) hours = 0;
     notes = escape(notes);
     var onload = 'TGrabber.addTicketSetValues(this, 1,"' + 
+                              parent_id + '", "' + 
                               title + '", "' + 
                               text + '", ' +
                               tracker + ',' + 

@@ -555,11 +555,12 @@ var JInterface = {
     var tracker = document.getElementById('task-add-tracker').value;
     var version_id = document.getElementById('task-add-version').value;
     var category_id = document.getElementById('task-add-category').value;
+    var parent_id = document.getElementById('task-add-parent-id').value;
     var title = escape(document.getElementById('task-add-name').value);
     var text = escape(document.getElementById('task-add-text').value);
     var assignee = document.getElementById('task-add-assignee').value;
 
-    TGrabber.createTask(tracker, title, text, version_id, category_id, 1, 1, assignee, '', '', 4, '');
+    TGrabber.createTask(tracker, parent_id, title, text, version_id, category_id, 1, 1, assignee, '', '', 4, '');
 
     $('menu_add_list_layer').innerHTML = '';
     $('menu_add_list_layer').appendChild(SortList.renderAddTask());
@@ -809,6 +810,9 @@ var SortList = {
     var addNameBoxLabel = JHtml.label('task-add-subject');
     addNameBoxLabel.innerHTML = 'Subject: ';
     var addNameBox = SortList.renderTextBox('task-add-name','80%');
+    var addParentBoxLabel = JHtml.label('task-add-parent-id');
+    addParentBoxLabel.innerHTML = 'Parent Task: ';
+    var addParentBox = SortList.renderTextBox('task-add-parent-id','20%');
     var addTextBoxLabel = JHtml.label('task-add-text');
     addTextBoxLabel.innerHTML = 'Description: ';
     var addTextBox = SortList.renderTextArea('task-add-text','100%');
@@ -834,7 +838,13 @@ var SortList = {
     add.appendChild(addNameBoxLabel);
     add.appendChild(addNameBox);
     add.appendChild(addSpacer); 
-    
+     
+    var addSpacer = JHtml.space();   
+
+    add.appendChild(addParentBoxLabel);
+    add.appendChild(addParentBox);
+    add.appendChild(addSpacer); 
+
     var addSpacer = JHtml.space();
 
     add.appendChild(addAssigneeLabel);
