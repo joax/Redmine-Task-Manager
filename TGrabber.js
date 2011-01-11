@@ -348,7 +348,7 @@ var TGrabber = {
     }
   },
 
-  createTask: function(tracker, title, text, target_version, category, priority, dificulty, assignee, start_date, due_date, hours, notes) {
+  createTask: function(tracker, parent_id, title, text, target_version, category, priority, dificulty, assignee, start_date, due_date, hours, notes) {
     if(!tracker) tracker = 0;
     if(!target_version) target_version = 0;
     if(!category) category = 0;
