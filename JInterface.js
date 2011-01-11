@@ -151,8 +151,8 @@ function ListCollection() {
 var listCollection = new ListCollection();
 var filterCollection = new FilterCollection();
 
-var sortProject = 'projects/data-products/';
-var sortBaseUrl = 'https://wiki.borderstylo.com/';
+var sortProject = 'projects/1/';
+var sortBaseUrl = '';
 
 var sortMe = 0;
 
@@ -337,7 +337,7 @@ var iframesLoaded = [];
 
 var JInterface = {
 
-  favIcon: "https://www.writeonglass.com/favicon.ico",
+  favIcon: "/favicon.ico",
 
   serializePreferences: function(arrayT) {
     var str = arrayT[0].join("^#^");
@@ -376,7 +376,7 @@ var JInterface = {
     var str = new String(document.location);
     if(str.indexOf('projects') != -1) {
       var parts = str.split('projects');
-      sortBaseURL = parts[0];
+      sortBaseUrl = parts[0];
       var project = parts[1].split('/');
       sortProject = 'projects/' + project[1] + '/';
     }

@@ -192,7 +192,6 @@ function List(list) {
   // be selected for.
   this.reordered = function(divElement, filterField) {
     if(listCollection.lists[0].isFiltered == 0) return null;
-    console.log('then?');
     if(!divElement) return null;
     var tasks = $(divElement).childNodes;
     var filterValue = 0;
@@ -610,7 +609,7 @@ function Task() {
     var dificulty = 1;
 
     for(var j=0;j<tds.length;j++) {
-      if(tds[j].className == 'checkbox') {
+      if(tds[j].className == 'checkbox hide-when-print') {
         tds[j].innerHTML = '';
         tds[j].style.width = '3%';
         var menuFull = tds[j];
@@ -647,7 +646,7 @@ function Task() {
         this.projectId = project;
         tds[j].parentNode.removeChild(tds[j]);
         j-=1;
-      } else if(tds[j].className == 'cf_3') {
+      } else if(tds[j].className == 'cf_1') {
         dificulty = tds[j].innerHTML;
         this.dificulty = parseInt(dificulty ? dificulty : 0);
         tds[j].parentNode.removeChild(tds[j]);

@@ -296,7 +296,7 @@ var TGrabber = {
   issueDueDate: 'issue_due_date',
   issueEstimatedHours: 'issue_estimated_hours',
   issueDoneRatio: 'issue_done_ratio',
-  issueDificulty: 'issue_custom_field_values_3',
+  issueDificulty: 'issue_custom_field_values_1',
   issueNotes: 'notes',
   issueRelations: 'relations',
   
