@@ -216,8 +216,17 @@ function List(list) {
 
   this.subTitle = function(title, field, ids) {
 
-    var dificulty = this.versionDificulty(ids);
-    var people    = this.versionPeople(ids);
+    var dificulty = 0;
+    var people = 0;
+    if(this.fieldFiltered == 'priorityId') { 
+      dificulty = this.priorityDificulty(ids);
+      people    = this.priorityPeople(ids);
+    } else {
+      dificulty = this.versionDificulty(ids);
+      people    = this.versionPeople(ids);
+    }
+   
+
 
     var sTitle = JHtml.div('subtitle-' + this.title + '-' + title);
     sTitle.setAttribute('style','display: inline-block; width: 100%; background-image: -webkit-gradient(linear, left top, left bottom, from(black), to(gray));' + 
@@ -230,7 +239,7 @@ function List(list) {
     text.innerHTML = title;
     var options = JHtml.div();
     options.setAttribute('style','float: right; width: 60px; font-size: 10px; padding-top: 2px; margin-right: 5px;');
-    options.innerHTML = 'VP ' + dificulty + '/' + people;
+    options.innerHTML = dificulty + '/' + people;
     options.setAttribute('onclick','');
     sTitle.appendChild(text);
     sTitle.appendChild(options);
@@ -422,6 +431,17 @@ function List(list) {
     }
     return total;
   };
+
+  this.weekDificulty = function() {
+    var total = 0;
+    var today = new Date();
+    for(var i=0;i<this.tasks.length;i++) {
+      var updated = this.tasks[i].updated ? this.tasks[i].updated - 1 : this.tasks[i].startDate - 1;
+      if(this.tasks[i].dificulty && parseInt(updated) > parseInt(today - (7*24*60*60*1000)))
+        total += this.tasks[i].dificulty;
+    }
+    return total;
+  };
   
   this.versionDificulty = function(ids) {
     var total = 0;
@@ -436,6 +456,19 @@ function List(list) {
     return total;
   };
 
+  this.priorityDificulty = function(ids) {
+    var total = 0;
+    if(!ids) return total;
+    for(var i=0;i<this.tasks.length;i++) {
+      for(var j=0;j<ids.length;j++) {
+        if(this.tasks[i].dificulty && this.tasks[i].priorityId == ids[j]) {
+          total += this.tasks[i].dificulty;
+        }
+      }
+    }
+    return total;
+  };
+
   this.versionPeople = function(ids) {
     var persons = {};
     var total = 0;
@@ -443,6 +476,22 @@ function List(list) {
     for(var i=0;i<this.tasks.length;i++) {
       for(var j=0;j<ids.length;j++) {
         if(this.tasks[i].assigned && this.tasks[i].versionId == ids[j]) {
+          persons[this.tasks[i].assigned] = this.tasks[i].assigned;
+        }
+      }
+    }
+    for(var e in persons)
+      total++;
+    return total;
+  };
+
+  this.priorityPeople = function(ids) {
+    var persons = {};
+    var total = 0;
+    if(!ids) return total;
+    for(var i=0;i<this.tasks.length;i++) {
+      for(var j=0;j<ids.length;j++) {
+        if(this.tasks[i].assigned && this.tasks[i].priorityId == ids[j]) {
           persons[this.tasks[i].assigned] = this.tasks[i].assigned;
         }
       }
@@ -484,7 +533,7 @@ function List(list) {
     $('bugs-count-' + this.title).innerHTML = this.bugsCounter() + ' bug' + (this.bugsCounter() == 1 ? "" : "s");     
     $('features-count-' + this.title).innerHTML = this.featuresCounter() + ' feature' + (this.featuresCounter() == 1 ? "" : "s");     
     $('tasks-count-' + this.title).innerHTML = this.tasksCounter() + ' task' + (this.tasksCounter() == 1 ? "" : "s");     
-    $('dificulty-count-' + this.title).innerHTML = 'Velocity: ' + this.dificulty();
+    $('dificulty-count-' + this.title).innerHTML = 'Velocity: ' + this.dificulty() + ' (7 days: ' + this.weekDificulty() + ')';
   };
 
   // ------------------ Iframe load -------------------------------
@@ -618,6 +667,11 @@ function Task() {
         this.updated = new Date(updated);
         tds[j].parentNode.removeChild(tds[j]);
         j-=1;
+      } else if(tds[j].className == 'created_on') {
+        var created = tds[j].innerHTML;
+        this.createdOn = new Date(created);
+        tds[j].parentNode.removeChild(tds[j]);
+        j-=1;
       } else if(tds[j].className == 'author') {
         var author = tds[j].innerHTML;
         tds[j].parentNode.removeChild(tds[j]);
@@ -625,6 +679,11 @@ function Task() {
       } else if(tds[j].className == 'tracker') {
         var tracker = tds[j].innerHTML;
         this.trackerId = TTracker.code(tracker);
+        tds[j].parentNode.removeChild(tds[j]);
+        j-=1;
+      } else if(tds[j].className == 'category') {
+        var category = tds[j].innerHTML;
+        this.categoryId = TCategory.code(category);
         tds[j].parentNode.removeChild(tds[j]);
         j-=1;
       } else if(tds[j].className == 'fixed_version') {
@@ -689,6 +748,7 @@ function Task() {
 
     var dificultyOps = JHtml.td();
     dificultyOps.setAttribute('width','8%');
+    dificultyOps.setAttribute('align','right');
     dificultyOps.appendChild(this.dificultyMenu(dificulty));
     aux.getElementsByTagName('TR')[0].appendChild(dificultyOps);   
  
@@ -774,10 +834,10 @@ function Task() {
     } else if (this.statusId == TStatus.CLOSED ) {
       var buttonReopen = JHtml.greyButton('Reopen','listCollection.task("' + this.taskId + '").setStatus(' + TStatus.NEW + ')');
       options.appendChild(buttonReopen);
-    } else if (this.statusId == TStatus.FAILING || this.statusId == TStatus.QA_FEEDBACK) {
+    } else if (this.statusId == TStatus.FAILING) {
       var buttonReopen = JHtml.greyButton('Reopen','listCollection.task("' + this.taskId + '").setStatus(' + TStatus.NEW + ')');
       options.appendChild(buttonReopen);
-    } else if (this.statusId == TStatus.FIXED || this.statusId == TStatus.REJECTED || this.statusId == TStatus.DEFERRED) {
+    } else if (this.statusId == TStatus.FIXED || this.statusId == TStatus.REJECTED) {
       var buttonReopen = JHtml.greyButton('Reopen','listCollection.task("' + this.taskId + '").setStatus(' + TStatus.NEW + ')');
       var buttonPush = JHtml.greenButton('Push','listCollection.task("' + this.taskId + '").setStatus(' + TStatus.PUSHED + ')');
       options.appendChild(buttonReopen);
@@ -795,6 +855,7 @@ function Task() {
       $(this.id).removeChild($(this.fullContainerId));
       menu.setAttribute('style','background-image: url(/images/arrow_collapsed_2.png); background-repeat: no-repeat; height: 20px; cursor: pointer;');
     } else {
+      JInterface.startLoading();
       menu.setAttribute('style','background-image: url(/images/arrow_down_2.png); background-repeat: no-repeat; height: 20px; cursor: pointer;');
       var c = JHtml.div(this.fullContainerId,'width: 99%; display: inline-block;');
       $(this.id).appendChild(c);
@@ -861,6 +922,7 @@ function Task() {
   };
 
   this.setStatus = function(statusId) {
+    JInterface.startLoading();
     var params = '[[TGrabber.issueStatusId, ' + statusId + ']';
     if(parseInt(statusId) == TStatus.FIXED || parseInt(statusId) == TStatus.CLOSED || parseInt(statusId) == TStatus.REJECTED) {
       var today = new Date();

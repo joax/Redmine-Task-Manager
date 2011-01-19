@@ -300,15 +300,14 @@ var TStatus = {
   list: [
     ['New',1],
     ['In Progress', 2],
-    ['Fixed', 3],
-    ['QA Feedback', 4],
+    ['Resolved', 3],
+    ['Feedback', 4],
     ['Closed', 5],
     ['Rejected', 6],
-    ['Deferred', 7],
-    ['Pushed', 8],
+    ['Pushed', 7],
+    ['Failing', 8],
     ['Accepted', 9],
-    ['Failing', 10],
-    ['Engineering Feedback', 11],
+    ['Engineering Feedback', 10]
     ],
 
   NEW: 1,
@@ -317,11 +316,10 @@ var TStatus = {
   QA_FEEDBACK: 4,
   CLOSED: 5,
   REJECTED: 6,
-  DEFERRED: 7,
-  PUSHED: 8,
+  PUSHED: 7,
   ACCEPTED: 9,
-  FAILING: 10,
-  ENGINEERING_FEEDBACK: 11,
+  FAILING: 8,
+  ENGINEERING_FEEDBACK: 10,
 };
 
 var Colors = {
@@ -526,10 +524,15 @@ var JInterface = {
     menuList    = JInterface.menuBottom(executeButton, menuList);
     menuTools   = JInterface.menuBottom(toolsButton, menuTools);
 
+    // Loading layer
+    var loading = JHtml.div('task_management_loading','display: none; float: right; background: #FFC200; color: black; border: 1px solid #AA700; width: 80px; height: 16px; border-radius: 5px; margin: 5px; text-align: center; padding: 4px;');
+    loading.innerHTML = 'loading...';
+
     menu.appendChild(menuList);
     menu.appendChild(menuAdd);
     menu.appendChild(menuTools);
     menu.appendChild(JInterface.menuRefresh('Refresh'));
+    menu.appendChild(loading);
     
     if($('content').childNodes.length == 0)
       $('content').appendChild(menu);
@@ -551,6 +554,14 @@ var JInterface = {
     JInterface.storePreferences();
   },
 
+  startLoading: function() {
+    $('task_management_loading').show();
+  },
+
+  stopLoading: function() { 
+    $('task_management_loading').hide('fast');
+  },
+
   addTask: function() {
     var tracker = document.getElementById('task-add-tracker').value;
     var version_id = document.getElementById('task-add-version').value;
@@ -559,8 +570,11 @@ var JInterface = {
     var title = escape(document.getElementById('task-add-name').value);
     var text = escape(document.getElementById('task-add-text').value);
     var assignee = document.getElementById('task-add-assignee').value;
+    var project = document.getElementById('task-add-project').value;
 
-    TGrabber.createTask(tracker, parent_id, title, text, version_id, category_id, 1, 1, assignee, '', '', 4, '');
+    JInterface.startLoading();
+
+    TGrabber.createTask(project, tracker, parent_id, title, text, version_id, category_id, 1, 1, assignee, '', '', 4, '');
 
     $('menu_add_list_layer').innerHTML = '';
     $('menu_add_list_layer').appendChild(SortList.renderAddTask());
@@ -609,6 +623,7 @@ var JInterface = {
     
     JInterface.preparePage(); 
     JInterface.menu();
+    JInterface.startLoading();
     var filtersDisplay = [];
     var counter = 0;
     if(listCollection.length() == 0) {
@@ -666,13 +681,11 @@ var JInterface = {
 
       setTimeout("TGrabber.garbageCollect()",2000);
     }
-    // TODO: 
-    // - Refresh options in 'Tools'
-    // - Timer options in 'Tools'
     var rate = $('refresh-rate').value
     if(rate > 0) {
       setTimeout("JInterface.refresh(false)",rate);
     }
+    setTimeout("JInterface.stopLoading()",4000);
   },
 }
 
@@ -721,7 +734,7 @@ var SortList = {
   addSizeLayer: function() {
     if(!$('sizeBar')) {
       var sizebar = JHtml.div('sizeBar',
-                                'cursor: ns-resize; float: left; width: 100%; ' + 
+                                'cursor: ns-resize; float: left; width: 98%; ' + 
                                 'margin: 0px auto; margin-top: 20px; margin-bottom: 20px; ' + 
                                 'font-size: 3px; padding: 0px; height: 3px; ' + 
                                 'border: 1px solid #d0d0d0; background-color: #f0f0f0;');
@@ -816,6 +829,14 @@ var SortList = {
     var addTextBoxLabel = JHtml.label('task-add-text');
     addTextBoxLabel.innerHTML = 'Description: ';
     var addTextBox = SortList.renderTextArea('task-add-text','100%');
+    
+    var projects = [["Base",""]];
+    for(var i=0;i<sortSubProjects.length; i++) {
+      projects[projects.length] = ["&gt;&nbsp;" + sortSubProjects[i].title, sortSubProjects[i].id];
+    }
+    var addProjectLabel = JHtml.label('task-tracker');
+    addProjectLabel.innerHTML = 'Project: ';
+    var addProject = SortList.renderDropDown('task-add-project',projects);
     var addTrackerLabel = JHtml.label('task-tracker');
     addTrackerLabel.innerHTML = 'Tracker: ';
     var addTracker = SortList.renderDropDown('task-add-tracker',TTracker.list);
@@ -828,7 +849,13 @@ var SortList = {
     var addAssigneeLabel = JHtml.label('task-assigned-to');
     addAssigneeLabel.innerHTML = 'Assign to: ';
     var addAssignee = SortList.renderDropDown('task-add-assignee',TAssignee.list);
- 
+  
+    add.appendChild(addProjectLabel);
+    add.appendChild(addProject);
+    add.appendChild(addSpacer);
+        
+    var addSpacer = JHtml.space();   
+
     add.appendChild(addTrackerLabel);
     add.appendChild(addTracker);
     add.appendChild(addSpacer);
@@ -1021,6 +1048,8 @@ var SortList = {
     d.appendChild(p);
     d.appendChild(s);
 
+    JInterface.stopLoading();
+
     return d;
   },
 
@@ -1054,6 +1083,7 @@ var SortList = {
     }
     TGrabber.garbageCollectOne(obj);
     SortList.doMagic();
+    JInterface.stopLoading();
     $(container + '-loading').fade();
   }
 };
