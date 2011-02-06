@@ -839,9 +839,9 @@ function Task() {
       options.appendChild(buttonReopen);
     } else if (this.statusId == TStatus.FIXED || this.statusId == TStatus.REJECTED) {
       var buttonReopen = JHtml.greyButton('Reopen','listCollection.task("' + this.taskId + '").setStatus(' + TStatus.NEW + ')');
-      var buttonPush = JHtml.greenButton('Push','listCollection.task("' + this.taskId + '").setStatus(' + TStatus.PUSHED + ')');
+      var buttonClose = JHtml.greenButton('Close','listCollection.task("' + this.taskId + '").setStatus(' + TStatus.CLOSED + ')');
       options.appendChild(buttonReopen);
-      options.appendChild(buttonPush);
+      options.appendChild(buttonClose);
     }
     // And we add the comment button :)
     buttonComment = JHtml.greyButton('Comment','listCollection.task("' + this.taskId + '").setStatus(' + this.statusId + ')');
